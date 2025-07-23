@@ -564,7 +564,7 @@ class remix:
 			# for mono/diffuse, use different colorbar limits and maps
 			efxAmax = 5 # limit in the Mono-diffuse asymmetric colorbar.
 			numAmax = 5e8
-			engAmax = 5
+			engAmax = 20
 			idiff = self.variables['amtype']['data']<=2
 			if varname in ['eflux','Meflux','Deflux','thmeflux']:
 				variable = self.variables[varname]['data']
@@ -628,7 +628,7 @@ class remix:
 				diff[~idiff]=0.0
 #				print('mono min/max:',mono.min(),mono.max())
 #				print('diff min/max:',diff.min(),diff.max())
-				ax.text(-75.*np.pi/180.,1.1*r.max(),('Diff max: '+format_str) % (-diff.min()))
+				ax.text(-77.*np.pi/180.,1.1*r.max(),('Diff max: '+format_str) % (-diff.min()))
 				ax.text( 75.*np.pi/180.,1.1*r.max(),('Mono max: '+format_str) % ( mono.max()))
 			else:
 				ax.text(-75.*np.pi/180.,1.2*r.max(),('min: '+format_str+'\nmax: ' +format_str) % (variable.min() ,variable.max()))
