@@ -122,8 +122,12 @@ def create_command_line_parser():
         help="Show RCM grid type in the eflx plot (default: %(default)s)"
     )
     parser.add_argument(
-        '-PP', action='store_true', default=False,
-        help="Show plasmapause (10/cc) in the eflx/nflx plot (default: %(default)s)"
+        '--nPP', type=float, metavar="nPP", default=0,
+        help="Plasmasphere density contour to show (default: %(default)/cc not shown)"
+    )
+    parser.add_argument(
+        '-MNDF', action='store_true', default=False,
+        help="Show mono-diffuse eflx/nflx in linear/log green/blue colormap (default: %(default)s)"
     )
     parser.add_argument(
         '-vid', action='store_true', default=False,
@@ -156,7 +160,8 @@ def makePlot(i, remixFile, nStp, args, varDict):
     spacecraft = args.spacecraft
     verbose = args.verbose
     do_GTYPE = args.GTYPE
-    do_PP = args.PP
+    nPP = args.nPP
+    do_MNDF = args.MNDF
     do_vid = args.vid
     do_overwrite = args.overwrite
     do_hash = not args.nohash
@@ -233,12 +238,12 @@ def makePlot(i, remixFile, nStp, args, varDict):
         axs[0] = ion.plot('current', gs=gs[0, 0])
         axs[1] = ion.plot('sigmap', gs=gs[0, 1])
         axs[2] = ion.plot('sigmah', gs=gs[0, 2])
-        axs[3] = ion.plot('joule', gs=gs[1, 0])
-        axs[4] = ion.plot('energy', gs=gs[1, 1])
         if do_nflux:
-            axs[5] = ion.plot('flux', gs=gs[1, 2],doGTYPE=do_GTYPE,doPP=do_PP)
+            axs[3] = ion.plot('flux', gs=gs[1, 0],doGTYPE=do_GTYPE,nPP=nPP,doMNDF=do_MNDF)
         else:
-            axs[5] = ion.plot('eflux', gs=gs[1, 2],doGTYPE=do_GTYPE,doPP=do_PP)
+            axs[3] = ion.plot('joule', gs=gs[1, 0])
+        axs[4] = ion.plot('energy', gs=gs[1, 1],doGTYPE=do_GTYPE,nPP=nPP,doMNDF=do_MNDF)
+        axs[5] = ion.plot('eflux', gs=gs[1, 2],doGTYPE=do_GTYPE,nPP=nPP,doMNDF=do_MNDF)
 
         # If requested, plot the magnetic footprints for the specified
         # spacecraft.
@@ -314,7 +319,8 @@ def main():
     spacecraft = args.spacecraft
     verbose = args.verbose
     do_GTYPE = args.GTYPE
-    do_PP = args.PP
+    nPP = args.nPP
+    do_MNDF = args.MNDF
     do_vid = args.vid
     do_overwrite = args.overwrite
     do_hash = not args.nohash

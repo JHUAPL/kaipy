@@ -7,6 +7,8 @@ import h5py
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
+import kaipy.kaiViz as kv
+import cmasher as cmr
 
 # Kaipy modules
 from kaipy.kdefs import RionE, REarth
@@ -19,6 +21,7 @@ mu0o4pi = 1.e-7          # mu0=4pi*10^-7 => mu0/4pi=10^-7
 facMax = 1.5
 facCM = cm.RdBu_r
 flxCM = cm.inferno
+eflxCM = plt.get_cmap('cmr.seaweed')
 
 class remix:
 	"""
@@ -51,7 +54,7 @@ class remix:
 		calcFaceAreas(self, x, y)
 			Calculates the area of each face in a quad mesh.
 	
-		plot(self, varname, ncontours=16, addlabels={}, gs=None, doInset=False, doCB=True, doCBVert=True, doGTYPE=False, doPP=False)
+		plot(self, varname, ncontours=16, addlabels={}, gs=None, doInset=False, doCB=True, doCBVert=True, doGTYPE=False, nPP=0, doMNDF=False)
 			Plots the specified variable.
 	
 		efield(self, returnDeltas=False, ri=Ri*1e3)
@@ -115,7 +118,10 @@ class remix:
 			'Deflux': {'min': 0, 'max': 10.},
 			'Penergy': {'min': 0, 'max': 240},
 			'Pflux': {'min': 0, 'max': 1.e7},
-			'Peflux': {'min': 0, 'max': 1.}
+			'Peflux': {'min': 0, 'max': 1.},
+			'beta': {'min':0.0, 'max':0.5},
+			'deltae': {'min':0, 'max':20},
+			'amtype': {'min':0, 'max':3}
 		}
 
 	def get_data(self, h5file, step):
@@ -171,6 +177,9 @@ class remix:
 			self.variables['sigmah']['data'] = self.ion['Hall conductance ' + h]
 			self.variables['energy']['data'] = self.ion['Average energy ' + h]
 			self.variables['flux']['data'] = self.ion['Number flux ' + h]
+			self.variables['beta']['data'] = self.ion['RCM beta '+h]
+			self.variables['deltae']['data'] = self.ion['Mono potential drop '+h]
+			self.variables['amtype']['data'] = self.ion['Auroral model type '+h]
 			if 'RCM grid type ' + h in self.ion.keys():
 				self.variables['gtype']['data'] = self.ion['RCM grid type ' + h]
 			if 'RCM plasmasphere density ' + h in self.ion.keys():
@@ -201,6 +210,9 @@ class remix:
 			self.variables['sigmah']['data'] = self.ion['Hall conductance ' + h][:, ::-1]
 			self.variables['energy']['data'] = self.ion['Average energy ' + h][:, ::-1]
 			self.variables['flux']['data'] = self.ion['Number flux ' + h][:, ::-1]
+			self.variables['beta']['data'] = self.ion['RCM beta '+h][:, ::-1]
+			self.variables['deltae']['data'] = self.ion['Mono potential drop '+h][:, ::-1]
+			self.variables['amtype']['data'] = self.ion['Auroral model type '+h][:, ::-1]
 			if 'RCM grid type ' + h in self.ion.keys():
 				self.variables['gtype']['data'] = self.ion['RCM grid type ' + h][:, ::-1]
 			if 'RCM plasmasphere density ' + h in self.ion.keys():
@@ -305,7 +317,7 @@ class remix:
 
 
 	# TODO: define and consolidate allowed variable names
-	def plot(self, varname, ncontours=16, addlabels={}, gs=None, doInset=False, doCB=True, doCBVert=True, doGTYPE=False, doPP=False):
+	def plot(self, varname, ncontours=16, addlabels={}, gs=None, doInset=False, doCB=True, doCBVert=True, doGTYPE=False, nPP=0, doMNDF=False):
 		"""
 		Plot the specified variable on a polar grid.
 
@@ -318,7 +330,8 @@ class remix:
 			doCB (bool): Whether to show the colorbar (default: True).
 			doCBVert (bool): Whether to show the colorbar vertically (default: True).
 			doGTYPE (bool): Whether to overplot grid type contours (default: False).
-			doPP (bool): Whether to overplot polar cap boundary contours (default: False).
+			nPP (real): plasmaspheric number density contour (default: 0 and not shown).
+			doMNDF (bool): Whether to plot mono/diffuse using gree/blue colorbar (default: False).
 
 		Returns:
 			ax (AxesSubplot): The AxesSubplot object containing the plot.
@@ -431,6 +444,10 @@ class remix:
 					'energy'    : r'Energy [keV]',
 					'flux'      : r'Flux [1/cm$^2$s]',
 					'eflux'     : r'Energy flux [erg/cm$^2$s]',
+					'gtype'     : r'IMAG grid type',
+					'beta'      : r'$\beta$',
+					'deltae'    : r'$\Delta$E [kV]',
+					'amtype'    : r'Auroral model type',
 					'ephi'      : r'$E_\phi$ [mV/m]',
 					'etheta'    : r'$E_\theta$ [mV/m]',
 					'efield'    : r'|E| [mV/m]',
@@ -461,7 +478,7 @@ class remix:
 			upper = self.variables[varname]['data'].max()
 
 		# define number format string for min/max labels
-		if varname !='flux' and varname !='Pflux': 
+		if varname not in ['flux','Dflux','Mflux','Pflux']:
 			if varname == 'jped':
 				format_str = '%.2f'
 			else:
@@ -472,7 +489,10 @@ class remix:
 		if (varname == 'potential') or (varname == 'current'):
 			cmap=facCM
 		elif varname in ['flux','energy','eflux','joule','Mflux','Menergy','Meflux','Dflux','Denergy','Deflux','Pflux','Penergy','Peflux']:
-			cmap=flxCM
+			if not doMNDF:
+				cmap=flxCM
+			else:
+				cmap=eflxCM
 			latlblclr = 'white'
 		elif (varname == 'velocity'): 
 			cmap=cm.YlOrRd
@@ -480,6 +500,12 @@ class remix:
 			cmap=None #cm.RdBu_r#None # cm.hsv
 		elif (varname == 'magpert'): 
 			cmap = cm.YlOrRd
+		elif (varname == 'beta'): 
+			cmap=cm.inferno
+		elif (varname == 'gtype'): 
+			cmap=cm.magma_r
+		elif (varname == 'deltae'): 
+			cmap=cm.viridis
 		else:
 			cmap=None # default is used
 		
@@ -518,7 +544,7 @@ class remix:
 		if varname == 'joule':
 			self.variables[varname]['data'] = self.joule()*1.e3  # convert to mW/m^2
 
-		variable = self.variables[varname]['data']
+#		variable = self.variables[varname]['data']
 
 		fig = plt.gcf()
 		
@@ -528,7 +554,39 @@ class remix:
 		else:
 			ax=fig.add_subplot(polar=True) 
 
-		p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,vmin=lower,vmax=upper)
+#		p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,vmin=lower,vmax=upper)
+
+		if not doMNDF:
+			# traditional colorbar limits and maps
+			variable = self.variables[varname]['data']
+			p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,vmin=lower,vmax=upper)
+		else:
+			# for mono/diffuse, use different colorbar limits and maps
+			efxAmax = 5 # limit in the Mono-diffuse asymmetric colorbar.
+			numAmax = 5e8
+			engAmax = 5
+			idiff = self.variables['amtype']['data']<=2
+			if varname in ['eflux','Meflux','Deflux','thmeflux']:
+				variable = self.variables[varname]['data']
+				variable[idiff] = -abs(variable[idiff])
+				# use linear scale if below 0.1 mW/m^2
+				# set color bar limit at efxAmax mW/m^2
+				vQ = kv.genNorm(efxAmax,doSymLog=False,linP=0.1)
+				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
+			elif varname in ['flux','Mflux','Dflux','thmflux']:
+				variable = self.variables[varname]['data']
+				variable[idiff] = -abs(variable[idiff])
+				# use linear scale if below 1e7 #/cm^2/s
+				# set color bar limit at numAmax #/cm^2/s
+				vQ = kv.genNorm(numAmax,doSymLog=False,linP=1.e7)
+				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
+			elif varname in ['energy','Menergy','Denergy']:
+				variable = self.variables[varname]['data']
+				variable[idiff] = -abs(variable[idiff])
+				# use linear scale if below 0.1 keV
+				# set color bar limit at engAmax keV
+				vQ = kv.genNorm(engAmax,doSymLog=False,linP=0.1)
+				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
 
 		if (not doInset):
 			if (doCB):
@@ -538,8 +596,21 @@ class remix:
 					cb=plt.colorbar(p,ax=ax,pad=0.1,shrink=0.85,orientation="horizontal")
 				cb.set_label(cblabels[varname])
 
-				ax.text(-75.*np.pi/180.,1.2*r.max(),('min: '+format_str+'\nmax: ' +format_str) % 
+				if not doMNDF:
+					ax.text(-75.*np.pi/180.,1.2*r.max(),('min: '+format_str+'\nmax: ' +format_str) % 
 					  (variable.min() ,variable.max()))
+				else:
+					if varname in ['flux','Mflux','Dflux']:
+						cticks = cb.get_ticks()
+						cticklab = [str('{:6.1e}'.format(abs(tick))) for tick in cticks]
+						cb.set_ticklabels(cticklab)
+					if varname in ['eflux','Meflux','Deflux','energy','Menergy','Denergy']:
+						cticks = cb.get_ticks()
+						cticklab = [str('{:.1f}'.format(abs(tick))) for tick in cticks]
+						cb.set_ticklabels(cticklab)
+				if varname in ['gtype']:
+					cb.set_ticks([0,1])
+					cb.set_ticklabels(['MHD','RCM'])
 			
 		lines, labels = plt.thetagrids((0.,90.,180.,270.),hour_labels)
 		lines, labels = plt.rgrids(circles,lbls,fontsize=8,color=latlblclr)
@@ -550,8 +621,18 @@ class remix:
 		# ax.axis([0,2*np.pi,0,r.max()],'tight')
 		ax.axis([0,2*np.pi,0,r.max()])
 		if (not doInset):
-			ax.text(-75.*np.pi/180.,1.2*r.max(),('min: '+format_str+'\nmax: ' +format_str) % 
-				  (variable.min() ,variable.max()))
+			if doMNDF and varname in ['eflux','Meflux','Deflux','flux','Mflux','Dflux','energy','Menergy','Denergy']:
+				mono=variable.copy()
+				diff=variable.copy()
+				mono[ idiff]=0.0
+				diff[~idiff]=0.0
+#				print('mono min/max:',mono.min(),mono.max())
+#				print('diff min/max:',diff.min(),diff.max())
+				ax.text(-75.*np.pi/180.,1.1*r.max(),('Diff max: '+format_str) % (-diff.min()))
+				ax.text( 75.*np.pi/180.,1.1*r.max(),('Mono max: '+format_str) % ( mono.max()))
+			else:
+				ax.text(-75.*np.pi/180.,1.2*r.max(),('min: '+format_str+'\nmax: ' +format_str) % (variable.min() ,variable.max()))
+
 			if varname in ['eflux','Meflux','Deflux','Peflux']:
 				ax.text(75.*np.pi/180.,1.3*r.max(),('GW: '+format_str) % power)
 			if (varname == 'current'):
@@ -562,8 +643,8 @@ class remix:
 			potential_overplot(doInset)
 		if doGTYPE and varname=='eflux': 
 			boundary_overplot('gtype',[0.01,0.99],'green',doInset)
-		if doPP and varname=='eflux':
-			boundary_overplot('npsp',[10],'cyan',doInset)
+		if nPP>0.0 and varname=='eflux':
+			boundary_overplot('npsp',[nPP],'red',doInset)
 
 		return ax
 	# mpl.rcParams['contour.negative_linestyle'] = 'solid'
