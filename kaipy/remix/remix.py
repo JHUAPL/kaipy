@@ -562,8 +562,8 @@ class remix:
 			p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,vmin=lower,vmax=upper)
 		else:
 			# for mono/diffuse, use different colorbar limits and maps
-			efxAmax = 5 # limit in the Mono-diffuse asymmetric colorbar.
-			numAmax = 5e8
+			efxAmax = 10 # limit in the Mono-diffuse asymmetric colorbar.
+			numAmax = 1e9
 			engAmax = 20
 			idiff = self.variables['amtype']['data']<=2
 			if varname in ['eflux','Meflux','Deflux','thmeflux']:
@@ -571,21 +571,21 @@ class remix:
 				variable[idiff] = -abs(variable[idiff])
 				# use linear scale if below 0.1 mW/m^2
 				# set color bar limit at efxAmax mW/m^2
-				vQ = kv.genNorm(efxAmax,doSymLog=False,linP=0.1)
+				vQ = kv.genNorm(efxAmax,doSymLog=False,linP=0.01*efxAmax)
 				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
 			elif varname in ['flux','Mflux','Dflux','thmflux']:
 				variable = self.variables[varname]['data']
 				variable[idiff] = -abs(variable[idiff])
 				# use linear scale if below 1e7 #/cm^2/s
 				# set color bar limit at numAmax #/cm^2/s
-				vQ = kv.genNorm(numAmax,doSymLog=False,linP=1.e7)
+				vQ = kv.genNorm(numAmax,doSymLog=False,linP=0.01*numAmax)
 				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
 			elif varname in ['energy','Menergy','Denergy']:
 				variable = self.variables[varname]['data']
 				variable[idiff] = -abs(variable[idiff])
 				# use linear scale if below 0.1 keV
 				# set color bar limit at engAmax keV
-				vQ = kv.genNorm(engAmax,doSymLog=False,linP=0.1)
+				vQ = kv.genNorm(engAmax,doSymLog=False,linP=0.01*engAmax)
 				p=ax.pcolormesh(theta+tOff,r,variable,cmap=cmap,norm=vQ)
 
 		if (not doInset):
