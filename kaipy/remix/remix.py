@@ -425,7 +425,13 @@ class remix:
 				LW = 0.75
 				alpha = 1
 				tOff = np.pi / 2.
-			ax.contour(tc + tOff, rc, tmp, levels=con_level, colors=con_color, linewidths=LW, alpha=alpha)
+			contour = ax.contour(tc + tOff, rc, tmp, levels=con_level, colors=con_color, linewidths=LW, alpha=alpha)
+			if con_name=='npsp':
+				cl_con = 'red'
+				ax.clabel(contour, inline=False, fontsize=8, fmt=lambda val: f"Npsph={val:.1f}", colors=cl_con, use_clabeltext=True)
+			if con_name=='gtype':
+				cl_con = 'purple'
+				ax.clabel(contour, inline=False, fontsize=8, fmt=lambda val: f"GIMAG={val:.2f}", colors=cl_con, use_clabeltext=True)
 
 		if not self.Initialized:
 			sys.exit("Variables should be initialized for the specific hemisphere (call init_var) prior to plotting.")
@@ -610,7 +616,7 @@ class remix:
 						cb.set_ticklabels(cticklab)
 				if varname in ['gtype']:
 					cb.set_ticks([0,1])
-					cb.set_ticklabels(['MHD','RCM'])
+					cb.set_ticklabels(['MHD','IMAG'])
 			
 		lines, labels = plt.thetagrids((0.,90.,180.,270.),hour_labels)
 		lines, labels = plt.rgrids(circles,lbls,fontsize=8,color=latlblclr)
@@ -642,9 +648,11 @@ class remix:
 		if varname=='current': 
 			potential_overplot(doInset)
 		if doGTYPE and varname=='eflux': 
-			boundary_overplot('gtype',[0.01,0.99],'green',doInset)
+			cl_con = 'purple'
+			boundary_overplot('gtype',[0.5],cl_con,doInset)
 		if nPP>0.0 and varname=='eflux':
-			boundary_overplot('npsp',[nPP],'red',doInset)
+			cl_con = 'red'
+			boundary_overplot('npsp',[nPP],cl_con,doInset)
 
 		return ax
 	# mpl.rcParams['contour.negative_linestyle'] = 'solid'
