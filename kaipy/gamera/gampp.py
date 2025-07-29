@@ -275,7 +275,7 @@ class GameraPipe(object):
 
 			for data,vID in coords:
 				datasets = []
-				with alive_bar(NrX,title=f"{titStr}/{vID}".ljust(kdefs.barLab),length=kdefs.barLen,bar=kdefs.barDef) as bar, \
+				with alive_bar(NrX,title=f"{titStr}/{vID}".ljust(kdefs.barLab),length=kdefs.barLen,bar=kdefs.barDef2) as bar, \
 					ProcessPoolExecutor(max_workers=self.nWorkers) as executor:
 					futures = [executor.submit(kh5.PullVarLoc, fIn, vID, loc=loc) for fIn, loc in files]
 					for future in as_completed(futures):
@@ -328,7 +328,7 @@ class GameraPipe(object):
 					else:
 						titStr = None
 					NrX = max(self.Nr,1)
-					with alive_bar(NrX,title=titStr,length=kdefs.barLen,bar=kdefs.barDef) as bar:
+					with alive_bar(NrX,title=titStr,length=kdefs.barLen,bar=kdefs.barDef2) as bar:
 						for (i,j,k) in itertools.product(range(self.Ri),range(self.Rj),range(self.Rk)):
 							iS = i *self.dNi
 							jS = j *self.dNj
