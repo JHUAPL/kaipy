@@ -284,7 +284,7 @@ def main():
 
 	#Loop over sub-range
 	titstr = "Comparing '%s' to '%s'"%(fdir1,fdir2)
-	with alive_bar(Nt,title=titstr.ljust(kdefs.barLab),length=kdefs.barLen,disable=doVerb) as bar:
+	with alive_bar(Nt,title=titstr.ljust(kdefs.barLab),length=kdefs.barLen,bar=kdefs.barDef,disable=doVerb) as bar:
 		#with concurrent.futures.ThreadPoolExecutor(max_workers=Nth) as executor:
 		with concurrent.futures.ProcessPoolExecutor(max_workers=Nth) as executor:
 			m = multiprocessing.Manager()
