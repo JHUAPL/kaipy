@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
-title: "kaipy: Python package for analysis and visualization of MAGE and space weather modeling data"
+title: "Kaipy: Python package for analysis and visualization of MAGE and space weather modeling data"
 version: "1.1.2"
 date-released: 2025-07-03
 doi: 10.5281/zenodo.15801041  
@@ -35,7 +35,7 @@ authors:
   - family-names: Pham
     given-names: Kevin
     orcid: https://orcid.org/0000-0001-5031-5519
-    affiliation: "NSF National Center for Atmospheric Research
+    affiliation: "NSF National Center for Atmospheric Research"
   - family-names: Provornikova
     given-names: Elena
     orcid: https://orcid.org/0000-0001-8875-7478
