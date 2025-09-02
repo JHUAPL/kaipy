@@ -102,8 +102,8 @@ def main():
 	AxL.clear()
 	AxR.clear()
 
-	mviz.PlotEqErrRel(gsph1,gsph2,nStp,xyBds,AxL,fnList,AxCB=AxCL)
-	mviz.PlotEqErrAbs(gsph1,gsph2,nStp,xyBds,AxR,fnList,AxCB=AxCR)
+	mviz.PlotErrRel(gsph1,gsph2,nStp,xyBds,AxL,fnList,AxCB=AxCL)
+	mviz.PlotErrAbs(gsph1,gsph2,nStp,xyBds,AxR,fnList,AxCB=AxCR)
 
 	gsph1.AddTime(nStp,AxL,xy=[0.025,0.89],fs="x-large")
 
