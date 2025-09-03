@@ -34,7 +34,6 @@ from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QObject, pyqtSignal, QUrl
 import matplotlib
 matplotlib.use("Agg")  # safe for servers/headless
@@ -243,6 +242,7 @@ class Communicator(QObject):
 
 class DashViewer(QMainWindow):
     def __init__(self, url, shutdown_callback):
+        from PyQt5.QtWebEngineWidgets import QWebEngineView # install as 'pip install PyQtWebEngine'
         super().__init__()
         self.setWindowTitle("MAGE Dashboard")
         self.setGeometry(100, 100, 1000, 800)
@@ -281,9 +281,9 @@ def readCaseData(caseInfo):
     for i in range(1,caseInfo['gamInum']+1):
         for j in range(1,caseInfo['gamJnum']+1):
             if caseInfo['gamSerial']:
-                gamFilename = f'{caseInfo['runid']}.gam.h5'
+                gamFilename = f"{caseInfo['runid']}.gam.h5"
             else:
-                gamFilename = f'{caseInfo['runid']}_{caseInfo['gamInum']:04d}_{caseInfo['gamJnum']:04d}_0001_{i-1:04d}_{j-1:04d}_0000.gam.h5'
+                gamFilename = f"{caseInfo['runid']}_{caseInfo['gamInum']:04d}_{caseInfo['gamJnum']:04d}_0001_{i-1:04d}_{j-1:04d}_0000.gam.h5"
             with h5py.File(gamFilename, 'r') as f:
                 data[f'Gtime{i}{j}'] = f['/timeAttributeCache/time'][()][firstStep:]
                 data[f'Gdt{i}{j}'] = f['/timeAttributeCache/dt'][()][firstStep:]
@@ -775,6 +775,9 @@ def create_command_line_parser():
     parser.add_argument(
         "-firstStep", type=int, default=firstStep, help="First Step# group to read data from in the case"
     )
+    parser.add_argument(
+        "--noBrowser", action='store_true', default=False, help="Use this flag to disable the Qt Web Browser"
+    )
     
     return parser
 
@@ -790,6 +793,7 @@ def main():
     args = parser.parse_args()
     caseXml = args.caseXml
     firstStep = args.firstStep
+    noBrowser = args.noBrowser
 
     port = get_free_port()
     dash_url = f"http://127.0.0.1:{port}"
@@ -805,7 +809,8 @@ def main():
     # Cleanly exit Qt app if Dash crashes
     def on_dash_failed():
         print("Dash failed to start. Closing Qt app.")
-        qt_app.quit()
+        if qt_app is not None:
+            qt_app.quit()
 
     comms.dash_failed.connect(on_dash_failed)
 
@@ -826,10 +831,16 @@ def main():
 
     #os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu"
 
-    qt_app = QApplication(sys.argv)
-    viewer = DashViewer(dash_url, shutdown_dash)
-    viewer.show()
-    sys.exit(qt_app.exec_())
+    if not noBrowser:
+        qt_app = QApplication(sys.argv)
+        viewer = DashViewer(dash_url, shutdown_dash)
+        viewer.show()
+        sys.exit(qt_app.exec_())
+    else:
+        print("No browser is being started for you.")
+        print(f"Please open your own browser and connect to the address '{dash_url}'")
+        print("Use ctrl-c to end the dashboard.")
+        server_thread.join()
 
 if __name__ == "__main__":
     main()
