@@ -88,6 +88,7 @@ setup(
             'gamsphVid=kaipy.scripts.quicklook.gamsphVid:main',
             'heliomovie=kaipy.scripts.quicklook.heliomovie:main',
             'heliopic=kaipy.scripts.quicklook.heliopic:main',
+            'mageDash=kaipy.scripts.quicklook.mageDash:main',
             'mixpic=kaipy.scripts.quicklook.mixpic:main',
             'msphpic=kaipy.scripts.quicklook.msphpic:main',
             'raijupic=kaipy.scripts.quicklook.raijupic:main',
@@ -96,8 +97,8 @@ setup(
             'remixTimeSeries=kaipy.scripts.quicklook.remixTimeSeries:main',
             'swpic=kaipy.scripts.quicklook.swpic:main',
             'vizTrj=kaipy.scripts.quicklook.vizTrj:main',
-            'raijudst=kaipy.raiju.dst:main',  
-            'raijum2m=kaipy.raiju.m2m:main'        
+            'raijudst=kaipy.raiju.dst:main',
+            'raijum2m=kaipy.raiju.m2m:main'
         ]
     }
 )

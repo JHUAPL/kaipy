@@ -53,6 +53,7 @@ import kaipy.remix.remix as remix
 import kaipy.kaiViz as kv
 import kaipy.kaiTools as kt
 import kaipy.kaiH5 as kaiH5
+import kaipy.kaixml as kx
 
 # lock because matplotlib isn't thread safe
 matplotlib_lock = threading.Lock()
@@ -136,6 +137,15 @@ Msph_Plot = html.Div(
 Gamera_Layout = html.Div(
     id = "gamera-panel",
     children=[
+        dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    html.H3(children="Gamera Plot Size"),
+                    dcc.Dropdown(['std','big','bigger','fullD','small'],
+                                 'std', id='msph-sizeDropdown',clearable=False,style={'width': '400px'})
+                ], width=4)
+            ])
+        ]),
         Msph_Plot
     ]
 )
@@ -150,6 +160,20 @@ Raiju_Plot = html.Div(
 Raiju_Layout = html.Div(
     id = "raiju-panel",
     children=[
+        dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    html.H3(children="Raiju Plot Type"),
+                    dcc.Dropdown(['P/E Pressure','P/E Density','bVol / FTE','Diff bVol / FTE','wIMAG / Tbounce'],
+                                 'P/E Pressure', id='raiju-typeDropdown',clearable=False,style={'width': '200px'})
+                ], width=4),
+                dbc.Col([
+                    html.H3(children="Raiju Buffer"),
+                    dcc.Dropdown(['ACTIVE','BUFFER'],
+                                 'ACTIVE', id='raiju-bufferDropdown',clearable=False,style={'width': '200px'})
+                ], width=4)
+            ])
+        ]),
         Raiju_Plot
     ]
 )
@@ -164,6 +188,15 @@ Remix_Plot = html.Div(
 Remix_Layout = html.Div(
     id = "remix-panel",
     children=[
+        dbc.Container([
+            dbc.Row([
+                dbc.Col([
+                    html.H3(children="Remix Plot Type"),
+                    dcc.Dropdown(['current','sigmap','sigmah','joule','energy','flux','eflux'],
+                                 'current', id='remix-typeDropdown',clearable=False,style={'width': '400px'})
+                ], width=4)
+            ])
+        ]),
         Remix_Plot
     ]
 )
@@ -188,9 +221,10 @@ tab_layout = html.Div(
 top_layout = html.Div(
     id = "top-panel",
     children=[
-        dcc.Slider(0, 120, 60, value=60, id="timeSlider"),
+        html.Div([dcc.Slider(1, 2, 1, value=1, id="timeSlider")],
+                style={"width": "95%", "margin-left": "auto", "margin-right": "auto", "height": "60px"}),
         html.Button("Refresh Data", id="refresh-button", n_clicks=0)
-    ],
+    ]
 )
 
 main_panel_layout = html.Div(
@@ -215,9 +249,12 @@ app.layout = root_layout
 
 # non-dash helper routines here
 
-def getStepFromTime(data, sliderValue):
+def getIndexFromTime(data, sliderValue):
     dataStep = np.argmin(np.abs(np.array(data['Vtime'])-sliderValue))
-    return dataStep + firstStep
+    return dataStep
+
+def getStepFromTime(data, sliderValue):
+    return getIndexFromTime(data, sliderValue) + firstStep
 
 def fig_to_data_uri(fig, *, dpi=150, facecolor="white", tight=False):
     buf = io.BytesIO()
@@ -242,7 +279,6 @@ class Communicator(QObject):
 
 class DashViewer(QMainWindow):
     def __init__(self, url, shutdown_callback):
-        from PyQt5.QtWebEngineWidgets import QWebEngineView # install as 'pip install PyQtWebEngine'
         super().__init__()
         self.setWindowTitle("MAGE Dashboard")
         self.setGeometry(100, 100, 1000, 800)
@@ -268,6 +304,7 @@ def readCaseData(caseInfo):
     
     with h5py.File(f"{caseInfo['runid']}.volt.h5", 'r') as f:
         data['Vtime'] = f['/timeAttributeCache/time'][()][firstStep:]
+        data['Vmjd'] = f['/timeAttributeCache/MJD'][()][firstStep:]
         if "/timeAttributeCache/_perf_stepTime" in f:
             data['VstepTime'] = f['/timeAttributeCache/_perf_stepTime'][()][firstStep:]
             data['VdeepUpdateTime'] = f['/timeAttributeCache/_perf_deepUpdateTime'][()][firstStep:]
@@ -329,22 +366,6 @@ def readCaseData(caseInfo):
     
     return data
 
-def getCaseInsensitiveXmlElement(E, name):
-    if E is None:
-        return None
-    for element in E.iter():
-        if element.tag.casefold() == name.casefold():
-            return element
-    return None
-
-def getCaseInsensitiveXmlAttribute(E, name):
-    if E is None:
-        return None
-    for attr_name,attr_value in E.attrib.items():
-        if attr_name.casefold() == name.casefold():
-            return attr_value
-    return None
-
 def getCaseInfo():
     caseInfo = {}
 
@@ -356,33 +377,33 @@ def getCaseInfo():
 
     tree = ET.parse(caseXml)
     root = tree.getroot()
-    kaijuE = getCaseInsensitiveXmlElement(root, 'kaiju')
-    gamE = getCaseInsensitiveXmlElement(kaijuE, 'gamera')
-    voltE = getCaseInsensitiveXmlElement(kaijuE, 'voltron')
+    kaijuE = kx.getXmlElement(root, 'kaiju')
+    gamE = kx.getXmlElement(kaijuE, 'gamera')
+    voltE = kx.getXmlElement(kaijuE, 'voltron')
     
-    caseInfo['gamSerial'] = getCaseInsensitiveXmlAttribute(getCaseInsensitiveXmlElement(voltE,'coupling'),'doserial')
+    caseInfo['gamSerial'] = kx.getXmlAttribute(kx.getXmlElement(voltE,'coupling'),'doserial')
     if caseInfo['gamSerial'] is None:
         caseInfo['gamSerial'] = False
     else:
         caseInfo['gamSerial'] = bool(caseInfo['gamSerial'])
     
-    caseInfo['dtCouple'] = getCaseInsensitiveXmlAttribute(getCaseInsensitiveXmlElement(voltE,'coupling'),'dtCouple')
+    caseInfo['dtCouple'] = kx.getXmlAttribute(kx.getXmlElement(voltE,'coupling'),'dtCouple')
     if caseInfo['dtCouple'] is None:
         caseInfo['dtCouple'] = 5.0
     else:
         caseInfo['dtCouple'] = float(caseInfo['dtCouple'])
 
-    caseInfo['runid'] = getCaseInsensitiveXmlAttribute(getCaseInsensitiveXmlElement(gamE,'sim'),'runid')
+    caseInfo['runid'] = kx.getXmlAttribute(kx.getXmlElement(gamE,'sim'),'runid')
     if caseInfo['runid'] is None:
         caseInfo['runid'] = 'msphere'
     
-    caseInfo['gamInum'] = getCaseInsensitiveXmlAttribute(getCaseInsensitiveXmlElement(gamE,'iPdir'),'N')
+    caseInfo['gamInum'] = kx.getXmlAttribute(kx.getXmlElement(gamE,'iPdir'),'N')
     if caseInfo['gamInum'] is None:
         caseInfo['gamInum'] = 1
     else:
         caseInfo['gamInum'] = int(caseInfo['gamInum'])
     
-    caseInfo['gamJnum'] = getCaseInsensitiveXmlAttribute(getCaseInsensitiveXmlElement(gamE,'jPdir'),'N')
+    caseInfo['gamJnum'] = kx.getXmlAttribute(kx.getXmlElement(gamE,'jPdir'),'N')
     if caseInfo['gamJnum'] is None:
         caseInfo['gamJnum'] = 1
     else:
@@ -585,95 +606,255 @@ def update_stackplot(data, caseInfo, perfType, iRank, jRank):
 @app.callback(
     Output("timeSlider", "min"),
     Output("timeSlider", "max"),
+    Output("timeSlider", "step"),
+    Output("timeSlider", "marks"),
     Input("store-data", "data"),
     prevent_initial_call=True
 )
 def update_slider(data):
-    return data['Vtime'][0], data['Vtime'][-1]
+    marks = {}
+    utfmt = '%Y-%m-%d %H:%M:%S.%f'
+    numMarks = 5 # number of time labels to fit on the bar total
+    markStep = 0.1
+    duration = data['Vtime'][-1] - data['Vtime'][0]
+    if duration <= (numMarks-1) * 0.1:
+        markStep = 0.1
+    elif duration <= (numMarks-1) * 1:
+        markStep = 1
+    elif duration <= (numMarks-1) * 5:
+        markStep = 5
+    elif duration <= (numMarks-1) * 15:
+        markStep = 15
+    elif duration <= (numMarks-1) * 30:
+        markStep = 30
+    elif duration <= (numMarks-1) * 60:
+        markStep = 60
+    elif duration <= (numMarks-1) * 60*5:
+        markStep = 60*5
+    elif duration <= (numMarks-1) * 60*15:
+        markStep = 60*15
+    elif duration <= (numMarks-1) * 60*30:
+        markStep = 60*30
+    elif duration <= (numMarks-1) * 60*60:
+        markStep = 60*60
+    elif duration <= (numMarks-1) * 60*60*3:
+        markStep = 60*60*3
+    elif duration <= (numMarks-1) * 60*60*6:
+        markStep = 60*60*6
+    elif duration <= (numMarks-1) * 60*60*12:
+        markStep = 60*60*12
+    elif duration <= (numMarks-1) * 60*60*24:
+        markStep = 60*60*24
+    elif duration <= (numMarks-1) * 60*60*24*2:
+        markStep = 60*60*24*2
+    elif duration <= (numMarks-1) * 60*60*24*4:
+        markStep = 60*60*24*4
+    else:
+        markStep = 60*60*24*7 # one week per interval. how long is this simulation?
+    
+    if markStep >= 1:
+        # print whole seconds only
+        utfmt = '%Y-%m-%d %H:%M:%S'
+    markStyle = {'min-width': '90px','max-width': '90px', 'text-align': 'center'}
+    markTime = data['Vtime'][0]
+    while markTime <= data['Vtime'][-1]:
+        markIndex = getIndexFromTime(data, markTime)
+        markData = {'label' : kt.MJD2UT(data['Vmjd'][markIndex]).strftime(utfmt), 'style' : markStyle}
+        marks[int(markIndex)] = markData
+        markTime = markTime + markStep
+    # ensure that the last time always has a mark, and that the mark before it isn't too close
+    if (data['Vtime'][-1] - data['Vtime'][max(marks.keys())]) < 0.8*markStep:
+        # last mark added is less than 80% of a step from the end time
+        # delete it before adding end time
+        del marks[max(marks.keys())]
+    markData = {'label' : kt.MJD2UT(data['Vmjd'][-1]).strftime(utfmt), 'style' : markStyle}
+    marks[len(data['Vtime'])-1] = markData
+    return [0,
+            len(data['Vtime'])-1,
+            1,
+            marks]
 
 @app.callback(
     Output("msph-image", "src"),
     Input("store-data", "data"),
     Input("timeSlider", "value"),
+    Input("msph-sizeDropdown","value"),
     prevent_initial_call=True
 )
-def updateMsphPlot(data, sliderValue):
+def updateMsphPlot(data, sliderValue, dropSize):
     if data['gsph'] is None:
         return ''
+    gsph = cache.get(data['gsph'])
     
     with matplotlib_lock:
-        step = getStepFromTime(data, sliderValue)
+        step =  sliderValue + firstStep
         figSz=(12, 7.5)
         # surprisingly hard to pass the size string
         sizeArg = lambda: None
-        sizeArg.size = 'std'
+        sizeArg.size = dropSize
         xyBds=mviz.GetSizeBds(sizeArg)
         fig = plt.figure(figsize=figSz)
-        gs = gridspec.GridSpec(3, 1, height_ratios=[20, 1, 1], hspace=0.025)
+        gs = gridspec.GridSpec(3, 1, height_ratios=[20, 3, 1], hspace=0.025)
         Ax = fig.add_subplot(gs[0, 0])
         Clb = fig.add_subplot(gs[-1, 0])
-        mviz.PlotEqB(cache.get(data['gsph']), step, xyBds, Ax, Clb, doBz=False)
+        mviz.PlotEqB(gsph, step, xyBds, Ax, Clb, doBz=False)
+        gsph.AddTime(step, Ax, xy=[0.025, 0.89], fs="x-large")
+        gsph.AddSW(step, Ax, xy=[0.625, 0.025], fs="small")
+        mviz.PlotMPI(gsph, Ax)
+
         return fig_to_data_uri(fig)
+
+# copied from raijupic
+def get_bVol_dipole(f5):
+    colats = ru.getVar(f5,'X')  # [rad]
+    R = f5['Grid']['ShellGrid'].attrs['radius']  # [Rp]
+    Leq = R/( np.sin(colats[:,0])*np.sin(colats[:,0]) )
+    Ni, Nj = colats.shape
+    bVol_dipole_1D = np.zeros(Ni)
+    for i in range(Ni):
+        bVol_dipole_1D[i] = kt.L_to_bVol(Leq[i])
+    bVol_dipole_2D = np.broadcast_to(bVol_dipole_1D[:,np.newaxis], (Ni,Nj))
+    return bVol_dipole_2D
 
 @app.callback(
     Output("raiju-image", "src"),
     Input("store-data", "data"),
     Input("case-store", "data"),
     Input("timeSlider", "value"),
+    Input("raiju-typeDropdown","value"),
+    Input("raiju-bufferDropdown","value"),
     prevent_initial_call=True
 )
-def updateRaijuPlot(data, caseInfo, sliderValue):
+def updateRaijuPlot(data, caseInfo, sliderValue, plotType, domainType):
     if data['raiI'] is None:
         return ''
     
     with matplotlib_lock:
         raiI = cache.get(data['raiI'])
 
-        step = getStepFromTime(data, sliderValue)
+        step = sliderValue + firstStep
         figSz = (13,7)
         eqBnds = [-15,10,-10,10]
         fig = plt.figure(figsize=figSz)
         gs = gridspec.GridSpec(4, 1, height_ratios=[0.1,1,1,0.1],hspace=0.2,wspace=0.18)
-        P_Clb = fig.add_subplot(gs[0, 0])
-        P_Ax = fig.add_subplot(gs[1, 0])
-        E_Ax = fig.add_subplot(gs[2, 0])
-        E_Clb = fig.add_subplot(gs[3, 0])
-        norm_press = kv.genNorm(05e-2,50,doLog=False)
-        cmap_press = cmr.lilac
-        kv.genCB(P_Clb, norm_press, "Proton Pressure [nPa]",cmap_press)
-        P_Clb.xaxis.set_ticks_position("top")
-        P_Clb.xaxis.set_label_position("top")
-        kv.genCB(E_Clb, norm_press, "Electron Pressure [nPa]",cmap_press)
-
+        P1_Clb = fig.add_subplot(gs[0, 0])
+        P1_Ax = fig.add_subplot(gs[1, 0])
+        P2_Ax = fig.add_subplot(gs[2, 0])
+        P2_Clb = fig.add_subplot(gs[3, 0])
         with h5py.File(f"{caseInfo['runid']}.raiju.h5", 'r') as rFile:
             s5 = rFile[f"Step#{step}"]
-            spcIdx_p = ru.spcIdx(raiI.species, ru.flavs_s['HOTP'])
-            spcIdx_e = ru.spcIdx(raiI.species, ru.flavs_s['HOTE'])
-            spcIdx_psph = ru.spcIdx(raiI.species, ru.flavs_s['PSPH'])
             xmin = ru.getVar(s5,'xmin')
             ymin = ru.getVar(s5,'ymin')
+            xmincc = kt.to_center2D(xmin)
+            ymincc = kt.to_center2D(ymin)
             topo = ru.getVar(s5,'topo')
             active = ru.getVar(s5,'active')
-            # plotting only active domain for now
-            #if config['domain'] == "ACTIVE":
-            #    mask_cc = active != ru.domain['ACTIVE']
-            #elif config['domain'] == "BUFFER":
-            #    mask_cc = active != ru.domain['INACTIVE']
-            mask_cc = active != ru.domain['ACTIVE']
+            if domainType == "ACTIVE":
+                mask_cc = active != ru.domain['ACTIVE']
+            elif domainType == "BUFFER":
+                mask_cc = active != ru.domain['INACTIVE']
             mask_corner = topo==ru.topo['OPEN']
-            press_all = ru.getVar(s5,'Pressure',mask=mask_cc,broadcast_dims=(2,))
-            press_p = press_all[:,:,spcIdx_p+1]  # First slot is bulk
-            press_e = press_all[:,:,spcIdx_e+1]
-            pot_corot = ru.getVar(s5, 'pot_corot', mask=mask_corner)
-            pot_iono  = ru.getVar(s5, 'pot_iono' , mask=mask_corner)
-            pot_total = pot_corot + pot_iono
-            levels_pot = np.arange(-250, 255, 5)
 
-            rv.plotXYMin(P_Ax, xmin, ymin, press_p,norm=norm_press,bnds=eqBnds,cmap=cmap_press)
-            P_Ax.contour(xmin, ymin, pot_total, levels=levels_pot, colors='white',linewidths=0.5, alpha=0.3)
-            rv.plotXYMin(E_Ax, xmin, ymin, press_e,norm=norm_press,bnds=eqBnds,cmap=cmap_press)
-            E_Ax.contour(xmin, ymin, pot_total, levels=levels_pot, colors='white',linewidths=0.5, alpha=0.3)
+            if plotType == 'P/E Pressure':
+                norm_press = kv.genNorm(05e-2,50,doLog=False)
+                cmap_press = cmr.lilac
+                kv.genCB(P1_Clb, norm_press, "Proton Pressure [nPa]",cmap_press)
+                P1_Clb.xaxis.set_ticks_position("top")
+                P1_Clb.xaxis.set_label_position("top")
+                kv.genCB(P2_Clb, norm_press, "Electron Pressure [nPa]",cmap_press)
+
+                spcIdx_p = ru.spcIdx(raiI.species, ru.flavs_s['HOTP'])
+                spcIdx_e = ru.spcIdx(raiI.species, ru.flavs_s['HOTE'])
+                press_all = ru.getVar(s5,'Pressure',mask=mask_cc,broadcast_dims=(2,))
+                press_p = press_all[:,:,spcIdx_p+1]  # First slot is bulk
+                press_e = press_all[:,:,spcIdx_e+1]
+                pot_corot = ru.getVar(s5, 'pot_corot', mask=mask_corner)
+                pot_iono  = ru.getVar(s5, 'pot_iono' , mask=mask_corner)
+                pot_total = pot_corot + pot_iono
+                levels_pot = np.arange(-250, 255, 5)
+
+                rv.plotXYMin(P1_Ax, xmin, ymin, press_p,norm=norm_press,bnds=eqBnds,cmap=cmap_press)
+                P1_Ax.contour(xmin, ymin, pot_total, levels=levels_pot, colors='white',linewidths=0.5, alpha=0.3)
+                rv.plotXYMin(P2_Ax, xmin, ymin, press_e,norm=norm_press,bnds=eqBnds,cmap=cmap_press)
+                P2_Ax.contour(xmin, ymin, pot_total, levels=levels_pot, colors='white',linewidths=0.5, alpha=0.3)
+            elif plotType == 'P/E Density':
+                norm_den   = kv.genNorm(0,10, doLog=False)
+                kv.genCB(P1_Clb, norm_den, "Proton Density [#/cc]")
+                P1_Clb.xaxis.set_ticks_position("top")
+                P1_Clb.xaxis.set_label_position("top")
+                kv.genCB(P2_Clb, norm_den, "Electron Density [#/cc]")
+
+                den_all   = ru.getVar(s5,'Density'  ,mask=mask_cc,broadcast_dims=(2,))
+                spcIdx_p = ru.spcIdx(raiI.species, ru.flavs_s['HOTP'])
+                spcIdx_e = ru.spcIdx(raiI.species, ru.flavs_s['HOTE'])
+                spcIdx_psph = ru.spcIdx(raiI.species, ru.flavs_s['PSPH'])
+                den_p = den_all[:,:,spcIdx_p+1]
+                den_e = den_all[:,:,spcIdx_e+1]
+                den_psph =  den_all[:,:,spcIdx_psph+1]
+
+                levels_psphDen = [1,10,100,1000]
+                rv.plotXYMin(P1_Ax, xmin, ymin, den_p,norm=norm_den,bnds=eqBnds)
+                P1_Ax.contour(xmincc, ymincc, den_psph,levels=levels_psphDen,colors='white',linewidths=0.5,alpha=0.4)
+                rv.plotXYMin(P2_Ax, xmin, ymin, den_e,norm=norm_den,bnds=eqBnds)
+            elif plotType == 'bVol / FTE':
+                norm_bvol = kv.genNorm(1e-4,1e0,doLog=True)
+                norm_ent  = kv.genNorm(1e-4,0.5,doLog=True)
+                cmap_bvol = cmr.dusk
+                cmap_ent = 'gist_earth'
+
+                kv.genCB(P1_Clb, norm_bvol, "bVol",cmap_bvol)
+                P1_Clb.xaxis.set_ticks_position("top")
+                P1_Clb.xaxis.set_label_position("top")
+                kv.genCB(P2_Clb, norm_ent , "Flux tube entropy",cmap_ent)
+
+                bVol    = ru.getVar(s5,'bVol'   ,mask=mask_corner)
+                bVol_cc = kt.to_center2D(bVol)
+                press_all = ru.getVar(s5,'Pressure',mask=mask_cc,broadcast_dims=(2,))
+                entropy = press_all[:,:,0]*bVol_cc**(5./3.)  # Wolf units [nPa * (Rx/nT)^(5/3)]
+
+                rv.plotXYMin(P1_Ax, xmin, ymin, bVol_cc,norm=norm_bvol,bnds=eqBnds,cmap=cmap_bvol)
+                P1_Ax.contour(xmincc,ymincc,active,levels=[0.5],colors='orange')
+                rv.plotXYMin(P2_Ax, xmin, ymin, entropy,norm=norm_ent ,bnds=eqBnds,cmap=cmap_ent)
+            elif plotType == 'Diff bVol / FTE':
+                norm_diff_bvol = kv.genNorm(-1e2,1e2,doSymLog=True)
+                norm_ent  = kv.genNorm(1e-4,0.5,doLog=True)
+                cmap_diff = 'RdBu_r'
+                cmap_ent = 'gist_earth'
+
+                kv.genCB(P1_Clb, norm_diff_bvol, "(V-V$_d$)/V$_d$",cM=cmap_diff)
+                P1_Clb.xaxis.set_ticks_position("top")
+                P1_Clb.xaxis.set_label_position("top")
+                kv.genCB(P2_Clb, norm_ent , "Flux tube entropy",cmap_ent)
+
+                bVol    = ru.getVar(s5,'bVol'   ,mask=mask_corner)
+                bVol_cc = kt.to_center2D(bVol)
+                press_all = ru.getVar(s5,'Pressure',mask=mask_cc,broadcast_dims=(2,))
+                entropy = press_all[:,:,0]*bVol_cc**(5./3.)  # Wolf units [nPa * (Rx/nT)^(5/3)]
+                bVol_dipole = get_bVol_dipole(rFile)
+                bVol_dip_cc = kt.to_center2D(bVol_dipole)
+                d_bVol_cc = (bVol_cc - bVol_dip_cc)/bVol_dip_cc
+
+                rv.plotXYMin(P1_Ax, xmin, ymin, d_bVol_cc,norm=norm_diff_bvol,cmap=cmap_diff,bnds=eqBnds)    
+                P1_Ax.contour(xmincc,ymincc,active,levels=[0.5],colors='orange')
+                rv.plotXYMin(P2_Ax, xmin, ymin, entropy,norm=norm_ent ,bnds=eqBnds,cmap=cmap_ent)
+            elif plotType == 'wIMAG / Tbounce':
+                norm_wimag = kv.genNorm(0,1,doLog=False)
+                norm_Tb = kv.genNorm(0,180,doLog=False)
+
+                kv.genCB(P1_Clb, norm_wimag, "wIMAG")
+                P1_Clb.xaxis.set_ticks_position("top")
+                P1_Clb.xaxis.set_label_position("top")
+                kv.genCB(P2_Clb, norm_Tb, "Tbounce [s]")
+
+                tBounce = ru.getVar(s5,'Tbounce',mask=mask_cc)
+                vaFrac  = ru.getVar(s5,'vaFrac',mask=mask_corner)
+
+                rv.plotXYMin(P1_Ax, xmin, ymin, vaFrac,norm=norm_wimag,bnds=eqBnds)
+                P1_Ax.contour(xmincc,ymincc,active,levels=[0.5],colors='orange')
+                rv.plotXYMin(P2_Ax, xmin, ymin, tBounce,norm=norm_Tb,bnds=eqBnds)
         
+        fig.suptitle(raiI.UTs[step])
+
         return fig_to_data_uri(fig)
 
 @app.callback(
@@ -681,19 +862,26 @@ def updateRaijuPlot(data, caseInfo, sliderValue):
     Input("store-data", "data"),
     Input("case-store", "data"),
     Input("timeSlider", "value"),
+    Input("remix-typeDropdown","value"),
     prevent_initial_call=True
 )
-def updateRemixPlot(data, caseInfo, sliderValue):
+def updateRemixPlot(data, caseInfo, sliderValue, plotType):
     with matplotlib_lock:
-        step = getStepFromTime(data, sliderValue)
+        step =  sliderValue + firstStep
         figSz = (12,7.5)
         fig = plt.figure(figsize=figSz)
-        gs = gridspec.GridSpec(1, 2, figure=fig, left=0.03, right=0.97, top=0.9, bottom=0.03)
+        plt.figtext(
+            0.5, 0.94, Time(data['Vmjd'][sliderValue], format='mjd').iso,
+            fontsize=12, multialignment='center', horizontalalignment='center'
+        )
+        gs = gridspec.GridSpec(2, 2, figure=fig, left=0.03, right=0.97, top=0.9, bottom=0.03, height_ratios=[2, 20])
         ion = remix.remix(f"{caseInfo['runid']}.mix.h5", step)
+        plt.figtext(0.25, 0.85, 'NORTH', fontsize=12, multialignment='center', horizontalalignment='center')
+        plt.figtext(0.75, 0.85, 'SOUTH', fontsize=12, multialignment='center', horizontalalignment='center')
         ion.init_vars('NORTH')
-        ion.plot('current', gs=gs[0, 0])
+        ion.plot(plotType, gs=gs[1, 0])
         ion.init_vars('SOUTH')
-        ion.plot('current', gs=gs[0, 1])
+        ion.plot(plotType, gs=gs[1, 1])
         return fig_to_data_uri(fig)
 
 @app.callback(
@@ -794,6 +982,10 @@ def main():
     caseXml = args.caseXml
     firstStep = args.firstStep
     noBrowser = args.noBrowser
+
+    if not noBrowser:
+        global QWebEngineView
+        from PyQt5.QtWebEngineWidgets import QWebEngineView # install as 'pip install PyQtWebEngine'
 
     port = get_free_port()
     dash_url = f"http://127.0.0.1:{port}"
