@@ -250,7 +250,7 @@ app.layout = root_layout
 # non-dash helper routines here
 
 def getIndexFromTime(data, sliderValue):
-    dataStep = np.argmin(np.abs(np.array(data['Vtime'])-sliderValue))
+    dataStep = np.argmin(np.abs(data['Vtime'])-sliderValue)
     return dataStep
 
 def getStepFromTime(data, sliderValue):
@@ -317,7 +317,7 @@ def readCaseData(caseInfo):
 
     for i in range(1,caseInfo['gamInum']+1):
         for j in range(1,caseInfo['gamJnum']+1):
-            if caseInfo['gamSerial']:
+            if not caseInfo['ismpi']:
                 gamFilename = f"{caseInfo['runid']}.gam.h5"
             else:
                 gamFilename = f"{caseInfo['runid']}_{caseInfo['gamInum']:04d}_{caseInfo['gamJnum']:04d}_0001_{i-1:04d}_{j-1:04d}_0000.gam.h5"
@@ -364,6 +364,14 @@ def readCaseData(caseInfo):
         data['Vtime'] = f['/timeAttributeCache/time'][()][firstStep:]
     '''
     
+    # sanitize the data
+    for key, value in data.items():
+        if isinstance(value, np.ndarray):
+            npa = value
+            npa = np.where(npa == np.nan, np.inf, npa)
+            npa = np.where(npa == 0, np.finfo(np.float64).tiny, npa)
+            data[key] = npa
+
     return data
 
 def getCaseInfo():
@@ -385,7 +393,13 @@ def getCaseInfo():
     if caseInfo['gamSerial'] is None:
         caseInfo['gamSerial'] = False
     else:
-        caseInfo['gamSerial'] = bool(caseInfo['gamSerial'])
+        if caseInfo['gamSerial'].lower() == 'f':
+            caseInfo['gamSerial'] = False
+        elif caseInfo['gamSerial'].lower() == 't':
+            caseInfo['gamSerial'] = True
+        else:
+            print("Could not determine whether case is running sychronous or asynchronous Gamera. Assuming Asynchronous")
+            caseInfo['gamSerial'] = False
     
     caseInfo['dtCouple'] = kx.getXmlAttribute(kx.getXmlElement(voltE,'coupling'),'dtCouple')
     if caseInfo['dtCouple'] is None:
@@ -409,10 +423,13 @@ def getCaseInfo():
     else:
         caseInfo['gamJnum'] = int(caseInfo['gamJnum'])
     
-    if os.path.exists(f"{caseInfo['runid']}.gamCpl.h5"):
-        caseInfo['ismpi'] = True
-    else:
+    if os.path.exists(f"{caseInfo['runid']}.gam.h5"):
         caseInfo['ismpi'] = False
+    else:
+        caseInfo['ismpi'] = True
+    
+    # non-mpi cases always have synchronous gamera
+    caseInfo['gamSerial'] = True
 
     if not os.path.exists(f"{caseInfo['runid']}.volt.h5"):
         print(f"*** ERROR *** Case files could not be found using runid {caseInfo['runid']}")
@@ -426,6 +443,7 @@ def getCaseInfo():
         caseInfo['datetime'] = np.char.decode(f.attrs['DATETIME'], encoding='utf-8')
 
     return caseInfo
+
 
 # dash app callbacks here
 @app.callback(
@@ -528,10 +546,11 @@ def update_stackplot(data, caseInfo, perfType, iRank, jRank):
         fig.update_layout(title="Voltron Performance")
         fig.update_layout(xaxis_title="Simulation Time", yaxis_title="Time per Update")
     elif perfType == 'Overall':
-        fig.add_trace(go.Scatter(x=data['Vtime'], y=100*caseInfo['dtCouple']/np.array(data['VdeepUpdateTime']),
+        fig.add_trace(go.Scatter(x=data['Vtime'], y=100*caseInfo['dtCouple']/np.array(data['VdeepUpdateTime'], dtype=np.float64),
                     name='Voltron Performance', mode='lines'))
         if caseInfo['ismpi'] and not caseInfo['gamSerial']:
-            fig.add_trace(go.Scatter(x=data['Gtime11'], y=100*np.array(data['Gdt11'])/np.array(data['GadvanceTime11']),
+            fig.add_trace(go.Scatter(x=data['Gtime11'],
+                        y=100*np.array(data['Gdt11'], dtype=np.float64)/np.array(data['GadvanceTime11'], dtype=np.float64),
                         name='Gamera Performance', mode='lines'))
         fig.update_layout(title="Overall Performance")
         fig.update_layout(xaxis_title="Simulation Time", yaxis_title="% of Real-Time")
@@ -539,22 +558,22 @@ def update_stackplot(data, caseInfo, perfType, iRank, jRank):
         for i in range(1,caseInfo['gamInum']+1):
             for j in range(1,caseInfo['gamJnum']+1):
                 fig.add_trace(go.Scatter(x=data[f'Gtime{i}{j}'],
-                        y=100*np.array(data[f'Gdt{i}{j}'])/np.array(data[f'GadvanceTime{i}{j}']),
+                        y=100*np.array(data[f'Gdt{i}{j}'], dtype=np.float64)/np.array(data[f'GadvanceTime{i}{j}'], dtype=np.float64),
                         name=f'G-I{i}-J{j}', mode='lines'))
         fig.update_layout(title="Gamera Performance By Rank")
         fig.update_layout(xaxis_title="Simulation Time", yaxis_title="% of Real-Time")
     elif perfType == 'Gamera-Ave':
-        GmathTimeAve = np.array(data['GmathTime11']).copy()
-        GbcTimeAve = np.array(data['GbcTime11']).copy()
-        GhaloTimeAve = np.array(data['GhaloTime11']).copy()
-        GioTimeAve = np.array(data['GioTime11']).copy()
+        GmathTimeAve = np.array(data['GmathTime11'], dtype=np.float64).copy()
+        GbcTimeAve = np.array(data['GbcTime11'], dtype=np.float64).copy()
+        GhaloTimeAve = np.array(data['GhaloTime11'], dtype=np.float64).copy()
+        GioTimeAve = np.array(data['GioTime11'], dtype=np.float64).copy()
         for i in range(1,caseInfo['gamInum']+1):
             for j in range(1,caseInfo['gamJnum']+1):
                 if i > 1 or j > 1:
-                    GmathTimeAve = GmathTimeAve + np.array(data[f'GmathTime{i}{j}'])
-                    GbcTimeAve = GbcTimeAve + np.array(data[f'GbcTime{i}{j}'])
-                    GhaloTimeAve = GhaloTimeAve + np.array(data[f'GhaloTime{i}{j}'])
-                    GioTimeAve = GioTimeAve + np.array(data[f'GioTime{i}{j}'])
+                    GmathTimeAve = GmathTimeAve + np.array(data[f'GmathTime{i}{j}'], dtype=np.float64)
+                    GbcTimeAve = GbcTimeAve + np.array(data[f'GbcTime{i}{j}'], dtype=np.float64)
+                    GhaloTimeAve = GhaloTimeAve + np.array(data[f'GhaloTime{i}{j}'], dtype=np.float64)
+                    GioTimeAve = GioTimeAve + np.array(data[f'GioTime{i}{j}'], dtype=np.float64)
         GmathTimeAve = GmathTimeAve / (caseInfo['gamInum']*caseInfo['gamJnum'])
         GbcTimeAve = GbcTimeAve / (caseInfo['gamInum']*caseInfo['gamJnum'])
         GhaloTimeAve = GhaloTimeAve / (caseInfo['gamInum']*caseInfo['gamJnum'])
