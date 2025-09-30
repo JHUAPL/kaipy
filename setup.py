@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='kaipy',
-    version='1.1.2',
+    version='1.1.3',
     description='Python software for CGS MAGE and other Kaiju models',
     author='Kaiju team',
     author_email='wiltbemj@ucar.edu',

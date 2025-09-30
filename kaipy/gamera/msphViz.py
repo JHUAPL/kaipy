@@ -652,7 +652,7 @@ def AddIonBoxes(gs, ion):
 	ion.init_vars('SOUTH')
 	ax = ion.plot('current', gs=gsRM[-dY-wXY:-dY, dX:dX+wXY], doInset=True)
 
-def plotPlane(gsph, data, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None):
+def plotPlane(gsph, data, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None, doVert=False):
 	"""
 	Base plotting routine for gsph plane
 
@@ -669,6 +669,7 @@ def plotPlane(gsph, data, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco
 		cmap (str, optional): The colormap to be used (default is 'viridis').
 		doLog (bool, optional): Whether to use logarithmic scaling for the colorbar (default is False).
 		midp (float, optional): The midpoint value for the colorbar (default is None).
+		doVert (bool, optional): Whether to display the colorbar vertically (default is False).
 
 	Returns:
 		None
@@ -685,12 +686,12 @@ def plotPlane(gsph, data, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco
 			vMax = np.max(np.abs([np.min(data), np.max(data)]))
 			vMin = -1.0 * vMax
 	vNorm = kv.genNorm(vMin, vMax=vMax, doLog=doLog, midP=midp)
-	kv.genCB(AxCB, vNorm, cbT=var, cM=cmap, Ntk=7)
+	kv.genCB(AxCB, vNorm, cbT=var, cM=cmap, Ntk=7, doVert=doVert)
 	Ax.pcolormesh(gsph.xxi, gsph.yyi, data, cmap=cmap, norm=vNorm)
 	kv.SetAx(xyBds, Ax)
 	return
 
-def plotXY(gsph, nStp, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None):
+def plotXY(gsph, nStp, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None, doVert=False):
 	"""
 	Plot a 2D slice of data on the XY plane of the gsph object.
 
@@ -707,19 +708,20 @@ def plotXY(gsph, nStp, xyBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=Tr
 		cmap (str, optional): The colormap to use for the plot (default is 'viridis').
 		doLog (bool, optional): Whether to use a logarithmic scale for the colorbar (default is False).
 		midp (float, optional): The midpoint value for the colorbar (default is None).
+		doVert (bool, optional): Whether to display the colorbar vertically (default is False).
 
 	Returns:
 		data: The 2D slice of data.
 	"""
 	data = gsph.EggSlice(var, nStp, doEq=True)
-	plotPlane(gsph, data, xyBds, Ax, AxCB, var, vMin=vMin, vMax=vMax, doDeco=doDeco, cmap=cmap, doLog=doLog, midp=midp)
+	plotPlane(gsph, data, xyBds, Ax, AxCB, var, vMin=vMin, vMax=vMax, doDeco=doDeco, cmap=cmap, doLog=doLog, midp=midp, doVert=doVert)
 	if doDeco:
 		kv.addEarth2D(ax=Ax)
 		Ax.set_xlabel('SM_X [Re]')
 		Ax.set_ylabel('SM-Y [Re]')
 	return data
 
-def plotXZ(gsph, nStp, xzBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None):
+def plotXZ(gsph, nStp, xzBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=True, cmap='viridis', doLog=False, midp=None, doVert=False):
 	"""
 	Plot a 2D slice of data in the XZ plane.
 
@@ -736,12 +738,13 @@ def plotXZ(gsph, nStp, xzBds, Ax, AxCB, var='D', vMin=None, vMax=None, doDeco=Tr
 		cmap (str): The colormap to use. Default is 'viridis'.
 		doLog (bool): Whether to use a logarithmic scale for the colorbar. Default is False.
 		midp (float): The midpoint value for the colorbar. Default is None.
+		doVert (bool, optional): Whether to display the colorbar vertically (default is False).
 
 	Returns:
 		data (numpy.ndarray): The 2D slice of data.
 	"""
 	data = gsph.EggSlice(var,nStp,doEq=False)
-	plotPlane(gsph,data,xzBds,Ax,AxCB,var,vMin=vMin,vMax=vMax,doDeco=doDeco,cmap=cmap,doLog=doLog,midp=midp)
+	plotPlane(gsph,data,xzBds,Ax,AxCB,var,vMin=vMin,vMax=vMax,doDeco=doDeco,cmap=cmap,doLog=doLog,midp=midp,doVert=doVert)
 	if (doDeco):
 		kv.addEarth2D(ax=Ax)
 	Ax.set_xlabel('SM_X [Re]')
