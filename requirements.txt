@@ -2,6 +2,7 @@ alive_progress
 astropy
 cartopy
 cdasws
+cmasher
 configparser
 h5py
 jupyterlab

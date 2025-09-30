@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='kaipy',
-    version='1.1.0',
+    version='1.1.3',
     description='Python software for CGS MAGE and other Kaiju models',
     author='Kaiju team',
     author_email='wiltbemj@ucar.edu',
@@ -21,7 +21,9 @@ setup(
     install_requires=[
         'alive_progress',
         'astropy',
+        'cartopy',
         'cdasws',
+        'cmasher',
         'configparser',
         'h5py',
         'jupyterlab',
@@ -33,6 +35,7 @@ setup(
         'slack_sdk',
         'spacepy',
         'sphinx-rtd-theme',
+        'sphinxcontrib-autoprogram',
         'sunpy',
         'gfz-api-client',
         'supermag-api'
