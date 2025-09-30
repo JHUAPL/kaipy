@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Kaipy: Python package for analysis and visualization of MAGE and space weather modeling data"
+version: "1.1.2"
+date-released: 2025-07-03
+doi: 10.5281/zenodo.15801041  
+repository-code: "https://github.com/JHUAPL/kaipy"
+license: "BSD 3-Clause"
+
+authors:
+  - family-names: Wiltberger
+    given-names: Michael
+    orcid: https://orcid.org/0000-0002-4844-3148
+    affiliation: "NSF National Center for Atmospheric Research"
+  - family-names: Bao
+    given-names: Shanshan
+    orcid: https://orcid.org/0000-0002-5209-3988
+    affiliation: "Rice University"
+  - family-names: Garretson
+    given-names: Jeffery
+    orcid: https://orcid.org/0000-0003-3805-9860
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: McCubbin
+    given-names: Andrew
+    orcid: https://orcid.org/0000-0002-6222-3627
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Merkin
+    given-names: Slava
+    orcid: https://orcid.org/0000-0003-4344-5424
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Michael
+    given-names: Adam
+    orcid: https://orcid.org/0000-0003-2227-1242
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Pham
+    given-names: Kevin
+    orcid: https://orcid.org/0000-0001-5031-5519
+    affiliation: "NSF National Center for Atmospheric Research"
+  - family-names: Provornikova
+    given-names: Elena
+    orcid: https://orcid.org/0000-0001-8875-7478
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Rao
+    given-names: Nikhil
+    affiliation: "NSF National Center for Atmospheric Research"
+    orcid: https://orcid.org/0000-0003-2639-9892
+  - family-names: Sciola
+    given-names: Anthony
+    orcid: https://orcid.org/0000-0002-9752-9618
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Sorathia
+    given-names: Kareem
+    orcid: https://orcid.org/0000-0002-6011-5470
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+  - family-names: Winter
+    given-names: Eric
+    orcid: https://orcid.org/0000-0001-5226-2107
+    affiliation: "Johns Hopkins University Applied Physics Laboratory"
+
+keywords:
+  - "space weather"
+  - "MAGE"
+  - "kaipy"
+  - "geospace modeling"

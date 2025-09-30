@@ -7,7 +7,7 @@ include-package-data = true
 
 [project]
 name = "kaipy"
-version = "1.1.0"
+version = "1.1.3"
 authors = [
     {name = "Eric Winter", email = "eric.winter@jhuapl.edu"},
 ]
@@ -22,7 +22,9 @@ classifiers = [
 dependencies = [
     "alive_progress",
     "astropy",
+    "cartopy",
     "cdasws",
+    "cmasher",
     "configparser",
     "h5py",
     "jupyterlab",
@@ -34,6 +36,7 @@ dependencies = [
     "slack_sdk",
     "spacepy",
     "sphinx-rtd-theme",
+    "sphinxcontrib-autoprogram",
     "sunpy",
     "gfz-api-client",
     "supermag-api"
