@@ -56,9 +56,10 @@ def createfile(iH5,fOut):
         sQ = str(Q)
         #Don't include stuff that starts with "Step"
         if "Step" not in sQ and cacheName not in sQ:
-            oH5.create_dataset(sQ,data=iH5[sQ])
-        if cacheName in sQ:
-            oH5.create_group(sQ)
+            if isinstance(iH5[sQ], h5py.Group):
+                oH5.copy(iH5[sQ], oH5)
+            else:
+                oH5.create_dataset(sQ,data=iH5[sQ])
     return oH5
 
 
@@ -172,6 +173,7 @@ def main():
         #Add the cache after steps, select the same steps for the cache that are contained in the
         #Ns:Ne:Nsk start,end,stride
         if cacheName in iH5.keys():
+            oH5.create_group(cacheName)
             for Q in iH5[cacheName].keys():
                 sQ = str(Q)
                
