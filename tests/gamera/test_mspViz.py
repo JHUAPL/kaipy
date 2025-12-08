@@ -7,7 +7,7 @@ import argparse
 from argparse import RawTextHelpFormatter
 
 import kaipy.remix.remix as remix
-from kaipy.gamera.msphViz import AddSizeArgs, GetSizeBds, PlotEqErrAbs, PlotEqErrRel, PlotLogicalErrAbs, PlotLogicalErrRel, CalcTotalErrAbs, CalcTotalErrRel, PlotEqB, PlotMerid, PlotJyXZ, PlotEqEphi, PlotMPI, AddIonBoxes, plotPlane, plotXY, plotXZ
+from kaipy.gamera.msphViz import AddSizeArgs, GetSizeBds, PlotErrAbs, PlotErrRel, PlotLogicalErrAbs, PlotLogicalErrRel, CalcTotalErrAbs, CalcTotalErrRel, PlotEqB, PlotMerid, PlotJyXZ, PlotEqEphi, PlotMPI, AddIonBoxes, plotPlane, plotXY, plotXZ
 
 
 @pytest.fixture
@@ -26,22 +26,22 @@ def test_GetSizeBds():
     result = GetSizeBds(args)
     assert result == [-100.0, 20.0, -60.0, 60.0]
 
-def test_PlotEqErrAbs(gamera_pipe):
+def test_PlotErrAbs(gamera_pipe):
     fig, ax = plt.subplots()
     gsphP = gamera_pipe
     gsphO = gamera_pipe
     fieldNames = ['Bz']
     xyBds = [-100, 100, -100, 100]
-    result = PlotEqErrAbs(gsphP, gsphO, 0, xyBds, ax, fieldNames)
+    result = PlotErrAbs(gsphP, gsphO, 0, xyBds, ax, fieldNames)
     assert isinstance(result, np.ndarray)
 
-def test_PlotEqErrRel(gamera_pipe):
+def test_PlotErrRel(gamera_pipe):
     fig, ax = plt.subplots()
     gsphP = gamera_pipe
     gsphO = gamera_pipe
     fieldNames = ['Bz']
     xyBds = [-100, 100, -100, 100]
-    result = PlotEqErrRel(gsphP, gsphO, 0, xyBds, ax, fieldNames)
+    result = PlotErrRel(gsphP, gsphO, 0, xyBds, ax, fieldNames)
     assert isinstance(result, np.ndarray)
 
 def test_PlotLogicalErrAbs(gamera_pipe):
