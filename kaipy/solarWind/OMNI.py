@@ -5,8 +5,13 @@ import re
 # Third-party modules
 import numpy
 from cdasws import CdasWs
-from pyspedas import kyoto
 from pytplot import get_data
+try:
+    # Try the newer import path first (for recent pyspedas versions)
+    from pyspedas.projects import kyoto
+except ImportError:
+    # Fall back to the older import path
+    from pyspedas import kyoto
 
 # Kaipy modules
 import kaipy.transform

@@ -43,14 +43,14 @@ def makeMovie(frame_dir,movie_name):
 			return
 
 	cmd = [
-	    ffmpegExe, "-nostdin", "-i", frame_pattern,
-	    "-vcodec", "libx264", "-crf", "14", "-profile:v", "high", "-pix_fmt", "yuv420p",
-	    movie_file,"-y"
+		ffmpegExe, "-nostdin", "-i", frame_pattern,
+		"-vcodec", "libx264", "-crf", "14", "-profile:v", "high", "-pix_fmt", "yuv420p",
+		movie_file,"-y"
 	]
 	subprocess.run(cmd, check=True)
 
 # python allows changes by reference to the errTimes,errListRel, errListAbs lists
-def makeImage(i,gsph1,gsph2,tOut,doVerb,xyBds,fnList,oDir,errTimes,errListRel,errListAbs,cv,dataCounter, vO, figSz, noMPI, noLog, fieldNames):
+def makeImage(i,gsph1,gsph2,tOut,doVerb,doEq,logAx,xyBds,fnList,oDir,errTimes,errListRel,errListAbs,cv,dataCounter, vO, figSz, noMPI, noLog, fieldNames):
 	if doVerb:
 		print("Making image %d"%(i))
 	#Convert time (in seconds) to Step #
@@ -77,23 +77,45 @@ def makeImage(i,gsph1,gsph2,tOut,doVerb,xyBds,fnList,oDir,errTimes,errListRel,er
 	AxB2.clear()
 	
 	#plot upper left msph error
-	mviz.PlotEqErrRel(gsph1,gsph2,nStp,xyBds,AxTL,fnList,AxCB=AxCT,doVerb=doVerb)
-	AxTL.set_title("Equatorial Slice of Relative Error")
+	mviz.PlotErrRel(gsph1,gsph2,nStp,xyBds,AxTL,fnList,AxCB=AxCT,doVerb=doVerb,doEq=doEq)
+	if doEq:
+		AxTL.set_title("Equatorial Slice of Relative Error")
+	else:
+		AxTL.set_title("Meridional Slice of Relative Error")
 	
-	#plot upper right k-axis error
-	mviz.PlotLogicalErrRel(gsph1,gsph2,nStp,AxTR,fnList,2,doVerb=doVerb)
-	AxTR.set_title("Per-Cell Relative Error along K-Axis")
+	#plot upper right cumulative logical error
+	mviz.PlotLogicalErrRel(gsph1,gsph2,nStp,AxTR,fnList,logAx,doVerb=doVerb)
+	if logAx == 0:
+		AxTR.set_title("Per-Cell Relative Error along I-Axis")
+	elif logAx == 1:
+		AxTR.set_title("Per-Cell Relative Error along J-Axis")
+	else:
+		AxTR.set_title("Per-Cell Relative Error along K-Axis")
 	if (not noMPI):
 		#plot I-MPI decomp on logical plot
-		if(gsph2.Ri > 1):
+		if(gsph2.Ri > 1 and logAx != 0):
 			for im in range(gsph2.Ri):
 				i0 = im*gsph2.dNi
-				AxTR.plot([i0, i0],[0, gsph2.Nj],"deepskyblue",linewidth=0.25,alpha=0.5)
+				if logAx == 1:
+					AxTR.plot([i0, i0],[0, gsph2.Nk],"deepskyblue",linewidth=0.25,alpha=0.5)
+				else:
+					AxTR.plot([i0, i0],[0, gsph2.Nj],"deepskyblue",linewidth=0.25,alpha=0.5)
 		#plot J-MPI decomp on logical plot
-		if (gsph2.Rj>1):
+		if (gsph2.Rj>1 and logAx != 1):
 			for jm in range(1,gsph2.Rj):
 				j0 = jm*gsph2.dNj
-				AxTR.plot([0, gsph2.Ni],[j0, j0],"deepskyblue",linewidth=0.25,alpha=0.5)
+				if logAx == 0:
+					AxTR.plot([j0, j0],[0, gsph2.Nk],"deepskyblue",linewidth=0.25,alpha=0.5)
+				else:
+					AxTR.plot([0, gsph2.Ni],[j0, j0],"deepskyblue",linewidth=0.25,alpha=0.5)
+		#plot K-MPI decomp on logical plot
+		if (gsph2.Rk>1 and logAx != 2):
+			for km in range(1,gsph2.Rk):
+				k0 = km*gsph2.dNk
+				if logAx == 0:
+					AxTR.plot([0, gsph2.Nj],[k0, k0],"deepskyblue",linewidth=0.25,alpha=0.5)
+				else:
+					AxTR.plot([0, gsph2.Ni],[k0, k0],"deepskyblue",linewidth=0.25,alpha=0.5)
 	
 	#plot bottom line plot
 	etval = tOut[i]/60.0
@@ -168,15 +190,17 @@ def create_command_line_parser():
 	fdir2 = os.getcwd()
 	ftag2 = "msphere"
 	oDir = "vid2D"
-	ts = 0    #[min]
-	te = 200  #[min]
+	ts = 0.0	  #[min]
+	te = 200.0	#[min]
 	dt = 0.0 #[sec] 0 default means every timestep
+	logAx = 2 # axis to accumulate logical error along
 	Nth = 1 #Number of threads
 	noMPI = False # Don't add MPI tiling
 	noLog = False
 	fieldNames = "Bx, By, Bz"
 	doVerb = False
 	skipMovie = False
+	merid = False
 
 	MainS = """Creates simple multi-panel figure for Gamera magnetosphere run
 	Left Panel - Residual vertical magnetic field
@@ -189,14 +213,16 @@ def create_command_line_parser():
 	parser.add_argument('-d2',type=str,metavar="directory",default=fdir2,help="Directory to read second dataset from (default: %(default)s)")
 	parser.add_argument('-id2',type=str,metavar="runid",default=ftag2,help="RunID of second dataset (default: %(default)s)")
 	parser.add_argument('-o',type=str,metavar="directory",default=oDir,help="Subdirectory to write to (default: %(default)s)")
-	parser.add_argument('-ts' ,type=int,metavar="tStart",default=ts,help="Starting time [min] (default: %(default)s)")
-	parser.add_argument('-te' ,type=int,metavar="tEnd"  ,default=te,help="Ending time   [min] (default: %(default)s)")
-	parser.add_argument('-dt' ,type=int,metavar="dt"    ,default=dt,help="Cadence       [sec] (default: %(default)s)")
+	parser.add_argument('-ts' ,type=float,metavar="tStart",default=ts,help="Starting time [min] (default: %(default)s)")
+	parser.add_argument('-te' ,type=float,metavar="tEnd"	,default=te,help="Ending time	[min] (default: %(default)s)")
+	parser.add_argument('-dt' ,type=float,metavar="dt"	,default=dt,help="Cadence		[sec] (default: %(default)s)")
+	parser.add_argument('-logAx',type=int,metavar="logAx",default=logAx,help="Index of the axis to accumulate along in the upper-right plot (default: %(default)s)")
 	parser.add_argument('-Nth' ,type=int,metavar="Nth",default=Nth,help="Number of threads to use (default: %(default)s)")
 	parser.add_argument('-f',type=str,metavar="fieldnames",default=fieldNames,help="Comma-separated fields to plot (default: %(default)s)")
 	parser.add_argument('-linear',action='store_true', default=noLog,help="Plot linear line plot instead of logarithmic (default: %(default)s)")
 	parser.add_argument('-v',action='store_true', default=doVerb,help="Do verbose output (default: %(default)s)")
 	parser.add_argument('-skipMovie',action='store_true', default=skipMovie,help="Skip automatic movie generation afterwards (default: %(default)s)")
+	parser.add_argument('-merid',action='store_true', default=merid,help="Plot meridional instead of equatorial slice (default: %(default)s)")
 	#parser.add_argument('-nompi', action='store_true', default=noMPI,help="Don't show MPI boundaries (default: %(default)s)")
 
 
@@ -209,15 +235,17 @@ def main():
 	fdir2 = os.getcwd()
 	ftag2 = "msphere"
 	oDir = "vid2D"
-	ts = 0    #[min]
-	te = 200  #[min]
+	ts = 0.0	  #[min]
+	te = 200.0	#[min]
 	dt = 0.0 #[sec] 0 default means every timestep
+	logAx = 2
 	Nth = 1 #Number of threads
 	noMPI = False # Don't add MPI tiling
 	noLog = False
 	fieldNames = "Bx, By, Bz"
 	doVerb = False
 	skipMovie = False
+	doEq = True
 
 	parser = create_command_line_parser()
 	mviz.AddSizeArgs(parser)
@@ -228,14 +256,16 @@ def main():
 	ftag1 = args.id1
 	fdir2 = args.d2
 	ftag2 = args.id2
-	ts  = args.ts
-	te  = args.te
-	dt  = args.dt
+	ts	= args.ts
+	te	= args.te
+	dt	= args.dt
+	logAx = args.logAx
 	oSub = args.o
 	Nth = args.Nth
 	fieldNames = args.f
 	noLog = args.linear
 	doVerb = args.v
+	doEq = not args.merid
 	#noMPI = args.noMPI
 	
 	fnList = [item.strip() for item in fieldNames.split(',')]
@@ -275,8 +305,8 @@ def main():
 	Nt = len(tOut)
 	vO = np.arange(0,Nt)
 
-	print("Writing %d outputs between minutes %d and %d"%(Nt,ts,te))
-	print("Using %d threads"%(Nth))
+	print(f"Writing {Nt} outputs between minutes {ts} and {te}")
+	print(f"Using {Nth} threads")
 	
 	errTimes = []
 	errListRel = []
@@ -284,7 +314,7 @@ def main():
 
 	#Loop over sub-range
 	titstr = "Comparing '%s' to '%s'"%(fdir1,fdir2)
-	with alive_bar(Nt,title=titstr.ljust(kdefs.barLab),length=kdefs.barLen,disable=doVerb) as bar:
+	with alive_bar(Nt,title=titstr.ljust(kdefs.barLab),length=kdefs.barLen,bar=kdefs.barDef,disable=doVerb) as bar:
 		#with concurrent.futures.ThreadPoolExecutor(max_workers=Nth) as executor:
 		with concurrent.futures.ProcessPoolExecutor(max_workers=Nth) as executor:
 			m = multiprocessing.Manager()
@@ -293,8 +323,8 @@ def main():
 			met = m.list(errTimes)
 			melr = m.list(errListRel)
 			mela = m.list(errListAbs)
-			#imageFutures = {executor.submit(makeImage,i,gsph1,gsph2,tOut,doVerb,xyBds,fnList,oDir,errTimes,errListRel,errListAbs,cv): i for i in range(0,Nt)}
-			imageFutures = {executor.submit(makeImage,i,gsph1,gsph2,tOut,doVerb,xyBds,fnList,oDir,met,melr,mela,cv,dataCounter,vO,figSz,noMPI,noLog,fieldNames): i for i in range(0,Nt)}
+			#imageFutures = {executor.submit(makeImage,i,gsph1,gsph2,tOut,doVerb,doEq,logAx,xyBds,fnList,oDir,errTimes,errListRel,errListAbs,cv): i for i in range(0,Nt)}
+			imageFutures = {executor.submit(makeImage,i,gsph1,gsph2,tOut,doVerb,doEq,logAx,xyBds,fnList,oDir,met,melr,mela,cv,dataCounter,vO,figSz,noMPI,noLog,fieldNames): i for i in range(0,Nt)}
 			for future in concurrent.futures.as_completed(imageFutures):
 				try:
 					retVal = future.result()
@@ -304,7 +334,7 @@ def main():
 					traceback.print_exc()
 					exit()
 				bar()
-        
+		
 	makeMovie(oDir,oSub)
 
 

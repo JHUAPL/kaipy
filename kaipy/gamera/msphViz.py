@@ -25,18 +25,18 @@ mpiCol = "deepskyblue"
 
 jMax = 10.0 #Max current for contours
 
-eMax = 5.0  #Max current for contours
+eMax = 5.0	#Max current for contours
 
 #Default pressure colorbar
 vP = kv.genNorm(vMin=1.0e-2,vMax=10.0,doLog=True)
 szStrs = ['small','std','big','bigger','fullD','dm']
 szBds = {}
-szBds["std"]      = [-40.0 ,20.0,2.0]
-szBds["big"]      = [-100.0,20.0,2.0]
+szBds["std"]	  = [-40.0 ,20.0,2.0]
+szBds["big"]	  = [-100.0,20.0,2.0]
 szBds["bigger"]   = [-200.0,25.0,2.0]
-szBds["fullD"]    = [-300.0,30.0,3.0] # full domain for double res
-szBds["small"]    = [-10.0 , 5.0,2.0]
-szBds["dm"]       = [-30.0 ,10.0,40.0/15.0]
+szBds["fullD"]	  = [-300.0,30.0,3.0] # full domain for double res
+szBds["small"]	  = [-10.0 , 5.0,2.0]
+szBds["dm"]		  = [-30.0 ,10.0,40.0/15.0]
 
 #Add different size options to argument
 def AddSizeArgs(parser):
@@ -74,10 +74,10 @@ def GetSizeBds(args):
 
 	return xyBds
 
-#Plot absolute error in the requested, or given, equatorial field
-def PlotEqErrAbs(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=True, doDeco=True, vMin=1e-9, vMax=1e-4, doLog=True, doVerb=True):
+#Plot absolute error in the requested, or given, equatorial or meridional field
+def PlotErrAbs(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=True, doDeco=True, vMin=1e-9, vMax=1e-4, doLog=True, doVerb=True, doEq=True):
 	"""
-	PlotEqErrAbs function plots the absolute error between two gsph objects.
+	PlotErrAbs function plots the absolute error between two gsph objects.
 
 	Args:
 		gsphP (gsph): The gsph object representing the predicted values.
@@ -93,6 +93,7 @@ def PlotEqErrAbs(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 		vMax (float, optional): The maximum value for the colorbar. (default: 1e-4)
 		doLog (bool, optional): Whether to use logarithmic scale for the colorbar. (default: True)
 		doVerb (bool, optional): Whether to print verbose output. (default: True)
+		doEq (bool, optional): Whether to plot equatorial or meridional (default: True)
 
 	Returns:
 		dataAbs (ndarray): The absolute error data.
@@ -118,8 +119,8 @@ def PlotEqErrAbs(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 		Ax.clear()
 	dataAbs = None
 	for fn in fieldNames:
-		dataP = gsphP.EggSlice(fn, nStp, doEq=True, doVerb=doVerb)
-		dataO = gsphO.EggSlice(fn, nStp, doEq=True, doVerb=doVerb)
+		dataP = gsphP.EggSlice(fn, nStp, doEq=doEq, doVerb=doVerb)
+		dataO = gsphO.EggSlice(fn, nStp, doEq=doEq, doVerb=doVerb)
 		if dataAbs is None:
 			dataAbs = np.square(dataO - dataP)
 		else:
@@ -132,13 +133,16 @@ def PlotEqErrAbs(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 	if doDeco:
 		kv.addEarth2D(ax=Ax)
 		Ax.set_xlabel('SM-X [Re]')
-		Ax.set_ylabel('SM-Y [Re]')
+		if doEq:
+			Ax.set_ylabel('SM-Y [Re]')
+		else:
+			Ax.set_ylabel('SM-Z [Re]')
 	return dataAbs
 
-#Plot relative error in the requested, or given, equatorial field
-def PlotEqErrRel(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=True, doDeco=True, vMin=1e-16, vMax=1, doLog=True, doVerb=True):
+#Plot relative error in the requested, or given, equatorial or meridional field
+def PlotErrRel(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=True, doDeco=True, vMin=1e-16, vMax=1, doLog=True, doVerb=True, doEq=True):
 	"""
-	PlotEqErrRel function plots the relative error between two gsph objects.
+	PlotErrRel function plots the relative error between two gsph objects.
 
 	Args:
 		gsphP (gsph): The gsph object representing the predicted values.
@@ -154,6 +158,7 @@ def PlotEqErrRel(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 		vMax (float, optional): The maximum value for the colorbar. (default: 1)
 		doLog (bool, optional): Whether to use logarithmic scale for the colorbar. (default: True)
 		doVerb (bool, optional): Whether to print verbose output. (default: True)
+		doEq (bool, optional): Whether to plot equatorial or meridional (default: True)
 
 	Returns:
 		dataRel (ndarray): The relative error data.
@@ -180,8 +185,8 @@ def PlotEqErrRel(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 	dataAbs = None
 	dataBase = None
 	for fn in fieldNames:
-		dataP = gsphP.EggSlice(fn, nStp, doEq=True, doVerb=doVerb)
-		dataO = gsphO.EggSlice(fn, nStp, doEq=True, doVerb=doVerb)
+		dataP = gsphP.EggSlice(fn, nStp, doEq=doEq, doVerb=doVerb)
+		dataO = gsphO.EggSlice(fn, nStp, doEq=doEq, doVerb=doVerb)
 		if dataAbs is None:
 			dataBase = np.square(dataP)
 			dataAbs = np.square(dataO - dataP)
@@ -200,7 +205,10 @@ def PlotEqErrRel(gsphP, gsphO, nStp, xyBds, Ax, fieldNames, AxCB=None, doClear=T
 	if doDeco:
 		kv.addEarth2D(ax=Ax)
 		Ax.set_xlabel('SM-X [Re]')
-		Ax.set_ylabel('SM-Y [Re]')
+		if doEq:
+			Ax.set_ylabel('SM-Y [Re]')
+		else:
+			Ax.set_ylabel('SM-Z [Re]')
 	return dataRel
 
 #Plot absolute error along the requested logical axis

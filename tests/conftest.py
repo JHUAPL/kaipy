@@ -47,6 +47,12 @@ def write_mix_h5(file_path,mjds=None):
             grp.create_dataset("Average energy SOUTH", data=np.zeros((Nlat, Nlon)))
             grp.create_dataset("Number flux NORTH", data=np.zeros((Nlat, Nlon)))
             grp.create_dataset("Number flux SOUTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("RCM beta NORTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("RCM beta SOUTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("Mono potential drop NORTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("Mono potential drop SOUTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("Auroral model type NORTH", data=np.zeros((Nlat, Nlon)))
+            grp.create_dataset("Auroral model type SOUTH", data=np.zeros((Nlat, Nlon)))
 
     return file_path
 

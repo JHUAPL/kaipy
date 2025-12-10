@@ -4,11 +4,16 @@ cartopy
 cdasws
 cmasher
 configparser
+dash
+dash_bootstrap_components
+flask_caching
 h5py
 jupyterlab
 matplotlib
 pandas
 progressbar
+pyqt5
+pyqtwebengine
 pyspedas
 pytest
 slack_sdk

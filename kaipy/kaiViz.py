@@ -15,6 +15,7 @@ from matplotlib.colors import Normalize
 from matplotlib.colors import SymLogNorm
 from matplotlib.patches import Wedge
 from matplotlib import ticker
+import shutil
 
 # Kaipy modules
 from kaipy.kdefs import *
@@ -288,6 +289,13 @@ def savePic(fOut, dpiQ=300, doTrim=True, bLenX=20, bLenY=None, doClose=False, do
         else:
             plt.close(saveFigure)
 
+#Checks to see if image magick is in the current path
+def isMagick():
+    path = shutil.which('magick')
+    if (path is None):
+        return False
+    else:
+        return True
 
 #Use imagemagick to trim whitespace off figure
 #doEven: Guarantee even number of pixels in X/Y
@@ -309,7 +317,9 @@ def trimFig(fName, bLenX=20, bLenY=None, doEven=True):
     if bLenY is None:
         bLenY = bLenX
 
-    ComS = 'convert -trim -border %dx%d -bordercolor "#FFFFFF" ' % (bLenX, bLenY) + fName + ' ' + fName
+    if (not isMagick()):
+        return
+    ComS = 'magick ' + fName + ' -trim -border %dx%d -bordercolor "#FFFFFF" '%(bLenX,bLenY) + ' ' + fName
     os.system(ComS)
 
     if doEven:
@@ -355,7 +365,8 @@ def ShaveX(fName):
     Returns:
         fName file is cropped by one pixel on the right side.
     """
-    ComS = 'convert -crop -1+0 +repage ' + fName + ' ' + fName
+
+    ComS = 'magick %s -crop -1+0 +repage %s'%(fName,fName)
     os.system(ComS)
 
 def ShaveY(fName):
@@ -368,7 +379,8 @@ def ShaveY(fName):
     Returns:
         fName file is cropped by one pixel on the top.
     """
-    ComS = 'convert -crop +0-1 +repage ' + fName + ' ' + fName
+
+    ComS = 'magick %s -crop +0-1 +repage %s'%(fName,fName)
     os.system(ComS)
 
 #---------------------------------
