@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata below."
 title: "Kaipy: Python package for analysis and visualization of MAGE and space weather modeling data"
-version: "1.1.2"
-date-released: 2025-07-03
-doi: 10.5281/zenodo.15801041  
+version: "1.1.4"
+date-released: 2025-12-03
+doi: 10.5281/zenodo.15801040  
 repository-code: "https://github.com/JHUAPL/kaipy"
-license: "BSD 3-Clause"
+license: "BSD-3-Clause"
 
 authors:
   - family-names: Wiltberger
