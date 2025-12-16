@@ -6,7 +6,7 @@ setup(
     description='Python software for CGS MAGE and other Kaiju models',
     author='Kaiju team',
     author_email='wiltbemj@ucar.edu',
-    url='https://bitbucket.org/aplkaiju/kaipy/src/master/',
+    url='https://github.com/JHUAPL/kaipy',
     packages=find_packages(),
     include_package_data=True,
     package_data={'kaipy': ['scripts/*', 'scripts/*/*'],
