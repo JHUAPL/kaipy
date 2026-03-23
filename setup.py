@@ -97,6 +97,7 @@ setup(
             'heliomovie=kaipy.scripts.quicklook.heliomovie:main',
             'heliopic=kaipy.scripts.quicklook.heliopic:main',
             'mageDash=kaipy.scripts.quicklook.mageDash:main',
+            'mergeGAM=kaipy.scripts.postproc.mergeGAM:main',
             'mixpic=kaipy.scripts.quicklook.mixpic:main',
             'msphpic=kaipy.scripts.quicklook.msphpic:main',
             'raijupic=kaipy.scripts.quicklook.raijupic:main',
