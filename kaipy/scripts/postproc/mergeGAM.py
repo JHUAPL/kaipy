@@ -264,7 +264,7 @@ def main():
 		('gamCpl', '*.gamCpl.h5'),
 		('mhdrcm', '*.mhdrcm.h5'),
 		('mix', '*.mix.h5'),
-		#('rcm', '*.rcm.h5'),
+		('rcm', '*.rcm.h5'),
 		('volt', '*.volt.h5'),
 	]
 
