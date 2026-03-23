@@ -2,9 +2,20 @@
 
 import os
 import glob
-import h5py
+import argparse
 from collections import defaultdict, OrderedDict
+
+#Third-party modules
 import numpy as np
+import h5py
+
+def create_command_line_parser():
+	import argparse
+	parser = argparse.ArgumentParser(description="Merge Gamera HDF5 MPI segment files into merged rank files in an output directory.")
+	parser.add_argument('-i', '--input', dest='root_dir', help='Root directory containing segment subdirectories')
+	parser.add_argument('-o', '--output', dest='output_dir', help='Output directory for merged files')
+	parser.add_argument('--basename', default='mage', help='Basename pattern for files to merge (default: mage)')
+	return parser
 
 def find_segment_files(root_dir, pattern='mage*.gam.h5'):
     """Recursively find all mage*.gam.h5 files in segment subdirectories."""
@@ -142,20 +153,83 @@ def merge_all_timesteps_per_rank(rank_files, merged_path):
 				for ak, av in timecache_attrs[dset].items():
 					d.attrs[ak] = av
 
+def find_serial_files(root_dir, pattern):
+	serial_files = []
+	for subdir, dirs, files in os.walk(root_dir):
+		h5s = sorted(glob.glob(os.path.join(subdir, pattern)))
+		for h5file in h5s:
+			serial_files.append(h5file)
+	return serial_files
 
-# def merge_all_timesteps(timestep_map, output_file, variables, layout_info, chunk_size=1024*1024):
-#     """For each timestep, merge all rank files into the output file."""
-#     for step, files in timestep_map.items():
-#         print(f"MJW Merging timestep {step} from {len(files)} rank files")
-#         merge_timestep_data(files, output_file, step, variables, layout_info, chunk_size)
-
+def merge_serial_files(files, merged_path):
+	if not files:
+		return
+	# Map: timestep -> file
+	timestep_files = {}
+	for f in files:
+		with h5py.File(f, 'r') as h5:
+			for g in h5:
+				if g.startswith('Step#'):
+					step = int(g.split('#')[1])
+					if step in timestep_files:
+						raise ValueError(f"Duplicate timestep {step} in {f} and {timestep_files[step]}")
+					timestep_files[step] = f
+	all_steps = sorted(timestep_files.keys())
+	if not all_steps:
+		raise ValueError("No timesteps found for this file type.")
+	ref_file = files[0]
+	metadata = collect_metadata(ref_file)
+	create_output_file(merged_path, metadata, {k: v['shape'] for k, v in metadata['structure'].items() if 'shape' in v})
+	with h5py.File(merged_path, 'a') as h5out:
+		for step in all_steps:
+			src_file = timestep_files[step]
+			gname = f'Step#{step}'
+			print(f"Merging timestep {step} from {src_file}")
+			with h5py.File(src_file, 'r') as h5in:
+				if gname not in h5in:
+					raise ValueError(f"Timestep {step} not found in {src_file}")
+				if gname in h5out:
+					del h5out[gname]
+				h5in.copy(gname, h5out)
+		# Copy non-step datasets/groups from reference file, except timeAttributeCache
+		with h5py.File(ref_file, 'r') as h5ref:
+			for k in h5ref:
+				if k == 'timeAttributeCache':
+					continue
+				if not k.startswith('Step#') and k not in h5out:
+					h5ref.copy(k, h5out)
+		# Special handling for timeAttributeCache: concatenate datasets across all files in file order
+		timecache_data = {}
+		timecache_attrs = {}
+		def min_step_in_file(f):
+			with h5py.File(f, 'r') as h5:
+				steps = [int(g.split('#')[1]) for g in h5 if g.startswith('Step#')]
+				return min(steps) if steps else float('inf')
+		sorted_files = sorted(files, key=min_step_in_file)
+		for f in sorted_files:
+			with h5py.File(f, 'r') as h5in:
+				if 'timeAttributeCache' in h5in:
+					for dset in h5in['timeAttributeCache']:
+						arr = h5in['timeAttributeCache'][dset][...]
+						if dset not in timecache_data:
+							timecache_data[dset] = []
+							timecache_attrs[dset] = dict(h5in['timeAttributeCache'][dset].attrs)
+						timecache_data[dset].append(arr)
+		if timecache_data:
+			if 'timeAttributeCache' not in h5out:
+				h5out.create_group('timeAttributeCache')
+			for dset, arrs in timecache_data.items():
+				concat = arrs[0]
+				if len(arrs) > 1:
+					concat = np.concatenate(arrs, axis=0)
+				d = h5out['timeAttributeCache'].create_dataset(dset, data=concat)
+				for ak, av in timecache_attrs[dset].items():
+					d.attrs[ak] = av
 
 def main():
-	import argparse
-	parser = argparse.ArgumentParser(description="Merge Gamera HDF5 MPI segment files into merged rank files in an output directory.")
-	parser.add_argument('root_dir', help='Root directory containing segment subdirectories')
-	parser.add_argument('output_dir', help='Output directory for merged files')
-	parser.add_argument('--basename', default='mage', help='Basename pattern for files to merge (default: mage)')
+	MainS = """Merge Gamera HDF5 MPI segment files into merged rank files in an output directory."""
+	parser = create_command_line_parser()
+
 	args = parser.parse_args()
 
 	pattern = f'{args.basename}*.gam.h5'
@@ -185,87 +259,14 @@ def main():
 		merge_all_timesteps_per_rank(rank_files, merged_path)
 		print(f"Merged timesteps into {merged_path}")
 
-
 	# --- SERIAL FILE MERGE LOGIC ---
 	serial_types = [
 		('gamCpl', '*.gamCpl.h5'),
 		('mhdrcm', '*.mhdrcm.h5'),
 		('mix', '*.mix.h5'),
-		('rcm', '*.rcm.h5'),
+		#('rcm', '*.rcm.h5'),
 		('volt', '*.volt.h5'),
 	]
-	def find_serial_files(root_dir, pattern):
-		serial_files = []
-		for subdir, dirs, files in os.walk(root_dir):
-			h5s = sorted(glob.glob(os.path.join(subdir, pattern)))
-			for h5file in h5s:
-				serial_files.append(h5file)
-		return serial_files
-
-	def merge_serial_files(files, merged_path):
-		if not files:
-			return
-		# Map: timestep -> file
-		timestep_files = {}
-		for f in files:
-			with h5py.File(f, 'r') as h5:
-				for g in h5:
-					if g.startswith('Step#'):
-						step = int(g.split('#')[1])
-						if step in timestep_files:
-							raise ValueError(f"Duplicate timestep {step} in {f} and {timestep_files[step]}")
-						timestep_files[step] = f
-		all_steps = sorted(timestep_files.keys())
-		if not all_steps:
-			raise ValueError("No timesteps found for this file type.")
-		ref_file = files[0]
-		metadata = collect_metadata(ref_file)
-		create_output_file(merged_path, metadata, {k: v['shape'] for k, v in metadata['structure'].items() if 'shape' in v})
-		with h5py.File(merged_path, 'a') as h5out:
-			for step in all_steps:
-				src_file = timestep_files[step]
-				gname = f'Step#{step}'
-				print(f"Merging timestep {step} from {src_file}")
-				with h5py.File(src_file, 'r') as h5in:
-					if gname not in h5in:
-						raise ValueError(f"Timestep {step} not found in {src_file}")
-					if gname in h5out:
-						del h5out[gname]
-					h5in.copy(gname, h5out)
-			# Copy non-step datasets/groups from reference file, except timeAttributeCache
-			with h5py.File(ref_file, 'r') as h5ref:
-				for k in h5ref:
-					if k == 'timeAttributeCache':
-						continue
-					if not k.startswith('Step#') and k not in h5out:
-						h5ref.copy(k, h5out)
-			# Special handling for timeAttributeCache: concatenate datasets across all files in file order
-			timecache_data = {}
-			timecache_attrs = {}
-			def min_step_in_file(f):
-				with h5py.File(f, 'r') as h5:
-					steps = [int(g.split('#')[1]) for g in h5 if g.startswith('Step#')]
-					return min(steps) if steps else float('inf')
-			sorted_files = sorted(files, key=min_step_in_file)
-			for f in sorted_files:
-				with h5py.File(f, 'r') as h5in:
-					if 'timeAttributeCache' in h5in:
-						for dset in h5in['timeAttributeCache']:
-							arr = h5in['timeAttributeCache'][dset][...]
-							if dset not in timecache_data:
-								timecache_data[dset] = []
-								timecache_attrs[dset] = dict(h5in['timeAttributeCache'][dset].attrs)
-							timecache_data[dset].append(arr)
-			if timecache_data:
-				if 'timeAttributeCache' not in h5out:
-					h5out.create_group('timeAttributeCache')
-				for dset, arrs in timecache_data.items():
-					concat = arrs[0]
-					if len(arrs) > 1:
-						concat = np.concatenate(arrs, axis=0)
-					d = h5out['timeAttributeCache'].create_dataset(dset, data=concat)
-					for ak, av in timecache_attrs[dset].items():
-						d.attrs[ak] = av
 
 	for typ, pattern in serial_types:
 		serial_files = find_serial_files(args.root_dir, pattern)
