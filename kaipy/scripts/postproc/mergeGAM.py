@@ -225,6 +225,42 @@ def merge_serial_files(files, merged_path):
 				d = h5out['timeAttributeCache'].create_dataset(dset, data=concat)
 				for ak, av in timecache_attrs[dset].items():
 					d.attrs[ak] = av
+		# --- VDS for timeAttributeCache datasets ---
+		# Collect all timeAttributeCache datasets and their shapes
+		timecache_datasets = {}
+		timecache_attrs = {}
+		def min_step_in_file(f):
+			with h5py.File(f, 'r') as h5:
+				steps = [int(g.split('#')[1]) for g in h5 if g.startswith('Step#')]
+				return min(steps) if steps else float('inf')
+		sorted_files = sorted(files, key=min_step_in_file)
+		for f in sorted_files:
+			with h5py.File(f, 'r') as h5in:
+				if 'timeAttributeCache' in h5in:
+					for dset in h5in['timeAttributeCache']:
+						arr = h5in['timeAttributeCache'][dset]
+						if dset not in timecache_datasets:
+							timecache_datasets[dset] = []
+							timecache_attrs[dset] = dict(arr.attrs)
+						timecache_datasets[dset].append((f, f'timeAttributeCache/{dset}', arr.shape, arr.dtype))
+		if timecache_datasets:
+			if 'timeAttributeCache' not in h5out:
+				h5out.create_group('timeAttributeCache')
+			for dset, entries in timecache_datasets.items():
+				# Concatenate along axis 0
+				total_len = sum(e[2][0] for e in entries)
+				shape0 = entries[0][2]
+				dtype = entries[0][3]
+				out_shape = (total_len,) + shape0[1:]
+				layout = h5py.VirtualLayout(shape=out_shape, dtype=dtype)
+				offset = 0
+				for f, dpath, shape, _ in entries:
+					vsource = h5py.VirtualSource(f, dpath, shape)
+					layout[offset:offset+shape[0]] = vsource
+					offset += shape[0]
+				d = h5out['timeAttributeCache'].create_virtual_dataset(dset, layout)
+				for ak, av in timecache_attrs[dset].items():
+					d.attrs[ak] = av
 
 def main():
 	MainS = """Merge Gamera HDF5 MPI segment files into merged rank files in an output directory."""
